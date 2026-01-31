@@ -13,9 +13,9 @@ CHANGES IN @VERSION@ (@DATE@)
 ============================
 
 * Fork of 3.18
-  - Added Makefile-based build system
   - Set English as default localization for fat95 handler
   - Rebuild by vasm 2.0d
+  - Consolidated documentation into fat95.guide
 
 * Detect SFS/PFS/FFS/RDB as foreign disk formats
 
@@ -28,6 +28,9 @@ CHANGES IN @VERSION@ (@DATE@)
   - Non-existent partitions now show "No Disk" instead of "Uninitialized"
   - Foreign formats (RDB, PFS, SFS) show "Uninitialized" only for partition 1
   - Fixes stale partition data when switching to cards with fewer partitions
+
+* Bug fixes
+  - Fixed trailing and consecutive slashes in path names (e.g., "makedir cf0:temp/" now correctly creates "temp")
 
 Purpose
 =======
@@ -74,6 +77,8 @@ CHECKSUMS
 CONTENTS
 ========
 fat95/fat95.guide - FAT95 filesystem handler documentation
+
+DOSDrivers - Mount list examples
 
 fat95/l/fat95 - FAT95 filesystem handler
 fat95/l/install95 - Locale installer tool (read/write locale files)

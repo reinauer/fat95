@@ -50,12 +50,12 @@ Improvements to this handler are developed in my free time. If you'd like to sup
 
 ## What's New in
 
-### 3.19-dev (29.01.2026)
+### 3.19-dev (31.01.2026)
 
 * **Fork of 3.18**
-  - Added Makefile-based build system
   - Set English as default localization for fat95 handler
   - Rebuild by vasm 2.0d
+  - Consolidated documentation into fat95.guide
 
 * Detect SFS/PFS/FFS/RDB as foreign disk formats
 
@@ -68,6 +68,9 @@ Improvements to this handler are developed in my free time. If you'd like to sup
   - Non-existent partitions now show "No Disk" instead of "Uninitialized"
   - Fixes stale partition data when switching to cards with fewer partitions
   - Foreign disk formats (RDB, PFS, SFS) show appropriate status per partition
+
+* **Bug fixes**
+  - Fixed trailing and consecutive slashes in path names (e.g., `makedir cf0:temp/` now correctly creates "temp")
 
 ## Installation
 
@@ -82,9 +85,13 @@ These two components are connected via a **mountlist** - a configuration file th
 
 **Installation**
 
-1. Edit the `install_fat95` text file for your language
-2. Double-click the `install_fat95` icon to activate the changes
-3. Optionally double-click example mountlist icons like `MS0` or `MS1` to mount immediately, but it's recommended to follow the [Mountlist Configuration](#mountlist-configuration) section to prepare a mountlist for your specific disk
+1. Edit the `install_fat95` text file for your language.
+2. Double-click the `install_fat95` icon to activate the changes.
+3. Optionally double-click example mountlist icons in `DOSDrivers/`:
+   - `MS0`/`MS1` - FAT-formatted PC DD 720k floppy (mfm.device)
+   - `CF0` - FAT partition on CompactFlash in PCMCIA slot (compactflash.device), supports MBR and GPT
+   
+   For custom configurations, see the [Mountlist Configuration](#mountlist-configuration) section.
 4. Copy mountlists to:
    - `DEVS:DOSDrivers/` for automatic mounting at boot, or
    - `SYS:Storage/DOSDrives/` for manual mounting via shell command (Method A: Shell Command)
