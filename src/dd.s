@@ -1,4 +1,4 @@
-; DiskDump raw block transfer tool V1.4
+; DiskDump raw block transfer tool
 ; Copyright (C) 2009  Torsten Jager <t.jager@gmx.de>
 ; This file is part of FAT95, a free FAT compatible file system for Amiga.
 ;
@@ -1636,10 +1636,7 @@ fmsg_end:
 
 ;--- Texts -------------------------------------------------
 
-	dc.b	'$VER: '
 	VER_STRING
-	dc.b	LF, 0
-	dc.b	'(c) Torsten Jager', 0
 TimerName:
 	dc.b	'timer.device',0
 SizeWarnStr1:
@@ -1709,4 +1706,3 @@ TextEnd:
 
 ;*** that's it!!!! *****************************************
 	end
-

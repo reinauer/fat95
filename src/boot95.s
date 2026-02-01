@@ -1,4 +1,4 @@
-; make fat95 partition bootable tool V3.18
+; make fat95 partition bootable tool
 ; Copyright (C) 2013  Torsten Jager <t.jager@gmx.de>
 ; This file is part of FAT95, a free FAT compatible file system for Amiga.
 ;
@@ -1298,9 +1298,7 @@ udm32_next:
 
 ;--- Texts -------------------------------------------------
 
-		dc.b	'$VER: '
 		VER_STRING
-		dc.b	LF,0
 DosName:	dc.b	'dos.library',0
 HelpStr:	dc.b	'Usage: boot95 <device> [<filesystem>]',LF,0
 DefFileName:	dc.b	'L:fat95',0

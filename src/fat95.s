@@ -1,4 +1,4 @@
-; FAT95 file system handler for AmigaOS V3.18
+; FAT95 file system handler for AmigaOS
 ; Copyright (C) 2013  Torsten Jager <t.jager@gmx.de>
 ; This file is part of FAT95, a free FAT compatible file system for Amiga.
 ;
@@ -3275,10 +3275,9 @@ FSRName:
 
 NodeName:
 	dc.b	"fat95",0
-	dc.b	"$VER: "
 IDStr:
 	VERSION_STRING
-	dc.b	"(c) Torsten Jager", LF, 0
+	dc.b	" (c) Torsten Jager, modified 2026 by Jaroslav Pulchart", LF, 0
 	even
 
 ;--- ROM-Code init -----------------------------------------

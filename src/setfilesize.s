@@ -1,4 +1,4 @@
-; Alter size of file tool V1.02
+; Alter size of file tool
 ; Copyright (C) 2001  Torsten Jager <t.jager@gmx.de>
 ; This file is part of FAT95, a free FAT compatible file system for Amiga.
 ;
@@ -430,10 +430,7 @@ udm32_next:
 
 ;--- Texts -------------------------------------------------
 
-		dc.b	'$VER: '
 		VER_STRING
-		dc.b	LF, 0
-		dc.b	'(c) Torsten Jager', 0
 DosName:	dc.b	'dos.library', 0
 HelpStr:	dc.b	'usage: SetFileSize <file> '
 		dc.b	'<new size>|+<addbytes>|-<cutbytes>', LF, 0
