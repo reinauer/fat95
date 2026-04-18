@@ -30,6 +30,35 @@ CALLSAME macro
 	jsr	\1(a6)			;same library as last CALLxxx
 	endm
 
+; --- 32-bit math: inline on 68020+, bsr to helper on 68000 ---
+; The helper bodies (UMul32 / UDivMod32 / Log2) are compiled out of
+; the 020+ binary via `ifnd __68020__` below.
+
+UMUL32	macro				;d0 = d0 * d1 (u32)
+	ifd	__68020__
+	mulu.l	d1,d0
+	else
+	bsr.w	UMul32
+	endif
+	endm
+
+UDIVMOD32 macro				;d0 = d0/d1, d1 = d0 mod d1 (u32)
+	ifd	__68020__
+	divul.l	d1,d1:d0
+	else
+	bsr.w	UDivMod32
+	endif
+	endm
+
+LOG2	macro				;d0 = log2(d0), d0 != 0
+	ifd	__68020__
+	bfffo	d0{0:32},d0
+	eori.w	#31,d0
+	else
+	bsr.w	Log2
+	endif
+	endm
+
 _AbsExecBase	= 4
 
 Forbid		= -132
@@ -3875,14 +3904,14 @@ FormatDisk:
 fd_t1:
 	move.l	FirstBlock(a4),d0
 	move.l	d2,d1
-	bsr.w	UDivMod32
+	UDIVMOD32
 	tst.l	d1
 	bne.s	fd_t2
 
 	move.l	FirstBlock(a4),d0
 	add.l	TotalBlocks(a4),d0
 	move.l	d2,d1
-	bsr.w	UDivMod32
+	UDIVMOD32
 	tst.l	d1
 	beq.s	fd_t3
 fd_t2:
@@ -4038,7 +4067,7 @@ fmd_xbfill:
 	bsr.w	_WBlock			;dupl
 	moveq.l	#0,d0
 	move.b	BlocksPerCluster(a4),d0
-	bsr.w	Log2
+	LOG2
 	move.l	TotalBlocks(a4),d1
 	sub.l	RootDirEnd(a4),d1	;# free data blocks
 	lsr.l	d0,d1
@@ -5168,11 +5197,11 @@ SetIntParams:
 	subq.l	#1,d0
 	move.l	d0,BlockMask(a4)
 	addq.l	#1,d0
-	bsr.w	Log2
+	LOG2
 	move.w	d0,BlockShift(a4)
 	move.w	d0,d1
 	move.l	PhysSize(a4),d0
-	bsr.w	Log2
+	LOG2
 	sub.w	d1,d0
 	move.w	d0,PhysShift(a4)	;normal 0
 	movem.l	(sp)+,d0-d1
@@ -5292,15 +5321,21 @@ IsBootBlock:
 	cmp.b	#36,d1			;..at least behind parameter block
 	blt.s	ibb_error
 ibb_bscheck:
-	cmp.l	#"NTFS",3(a0)		;NTFS volume (OEM ID at offset 3)..
-	beq.s	ibb_error		;..not a FAT filesystem
+	;Reject NTFS (OEM ID "NTFS    " at offset 3).  3(a0) is an odd
+	;address, so a `cmp.l #"NTFS",3(a0)` would Address-Error on 68000.
+	;Check byte at offset 3 first, then the remaining aligned long.
+	cmp.b	#'N',3(a0)		;NTFS OEM ID byte 0..
+	bne.s	ibb_not_ntfs
+	cmp.l	#"TFS ",4(a0)		;..bytes 1..4 (aligned long)
+	beq.w	ibb_error		;NTFS volume - not a FAT filesystem
+ibb_not_ntfs:
 
 	moveq.l	#0,d1
 	move.b	13(a0),d1		;Blocks/Cluster..
 	beq.s	ibb_error		;..is null..
 
 	move.l	d1,d0
-	bsr.w	Log2
+	LOG2
 	bclr	d0,d1
 	tst.l	d1
 	bne.s	ibb_error		;..or no power of 2
@@ -5309,7 +5344,7 @@ ibb_bscheck:
 	lsl.w	#8,d1
 	move.b	11(a0),d1		;logical Block size..
 	move.l	d1,d0
-	bsr.w	Log2
+	LOG2
 	cmp.w	#9,d0
 	bcs.s	ibb_error		;..is < 512,..
 
@@ -5337,12 +5372,21 @@ ibb_error:
 
 GetDiskParams:
 	link.w	a5,#-GPA_TABSIZE
-	movem.l	d2-d4/a2,-(sp)
+	movem.l	d2-d7/a2,-(sp)		;GPT path uses d5/d6/d7 too
 
 ;- - general check - - - - - - - - - - - - - - - - - - - - -
 
 	clr.b	SearchCount(a4)
 	bsr.w	FreeFATBuf
+	;Clear partition-state before probing, so a failed or partial
+	;detection cannot leak stale FirstBlock/TotalBlocks/PartitionNum
+	;/FATType values from a previous successful mount into gdp_ndos
+	;(which reads them) or into the next probe cycle.
+	clr.l	FirstBlock(a4)
+	clr.l	TotalBlocks(a4)
+	clr.l	HiddenBlocks(a4)
+	clr.w	PartitionNum(a4)
+	clr.w	FATType(a4)
 	bsr.w	DiskStatus
 	move.w	d0,d3
 	beq.w	gdp_none		;no disk
@@ -5472,50 +5516,65 @@ gdp_gpt_p1:
 
 	;Scan GPT entries for FAT partition
 	moveq.l	#0,d7			;FAT partition counter
-	moveq.l	#0,d0			;current entry index
+	moveq.l	#0,d0			;current entry index (32-bit)
 gdp_gpt_loop:
-	cmp.w	d5,d0			;scanned all entries?
+	cmp.l	d5,d0			;scanned all entries? (32-bit index vs count)
 	bcc.w	gdp_gpt_cleanup		;not found
 
-	;Calculate LBA and offset for this entry
-	move.l	d0,d1
-	mulu.w	d6,d1			;byte offset = index * entry_size
-	move.w	BlockSize(a4),d3
-	divu.w	d3,d1			;d1.w = block offset, remainder in high word
-	swap	d1
-	move.w	d1,d3			;d3 = byte offset within block
-	clr.w	d1			;clear remainder from low word
-	swap	d1			;d1 = block offset (quotient only)
-	add.l	d4,d1			;d1 = absolute LBA
-
-	;Read block containing this entry
+	;Calculate LBA and byte-offset for this entry
 	move.l	d0,-(sp)		;save entry index
-	move.l	d1,d0
+	move.l	d6,d1			;d1 = entry size
+	UMUL32				;d0 = entry_idx * entry_size (byte offset)
+	moveq.l	#0,d1
+	move.w	BlockSize(a4),d1	;BlockSize fits in 16 bits (512..4096)
+	UDIVMOD32			;d0 = block offset (quot), d1 = byte offset in block (rem)
+	move.l	d1,d3			;d3 = byte offset within block
+	add.l	d4,d0			;d0 = absolute LBA
+
+	;Read block containing this entry (SingleBuf cache absorbs repeats)
 	bsr.w	ReadSingle
 	move.l	(sp)+,d1		;restore entry index to d1 temporarily
 	tst.l	d0			;check if read succeeded
-	beq.s	gdp_gpt_cleanup		;read failed
+	beq.w	gdp_gpt_cleanup		;read failed
 	move.l	d0,a1			;block data
 	move.l	d1,d0			;restore entry index to d0
 
-	add.w	d3,a1			;a1 = &partition entry
+	add.w	d3,a1			;a1 = &partition entry (d3 < BlockSize, fits pos. word)
 
 	;Check if entry is used (GUID not all zeros)
 	tst.l	(a1)
 	beq.s	gdp_gpt_next		;unused entry
 
-	;Check partition type GUID for Microsoft Basic Data
-	;GUID: EBD0A0A2-B9E5-4433-87C0-68B6B72699C7 (little-endian)
-	cmp.l	#$A2A0D0EB,(a1)		;first 4 bytes (already little-endian in memory)
-	bne.s	gdp_gpt_next		;not FAT partition
+	;Check partition type GUID (full 16 bytes) against FAT-carrying GUIDs:
+	;  EBD0A0A2-B9E5-4433-87C0-68B6B72699C7  Microsoft Basic Data
+	;  C12A7328-F81F-11D2-BA4B-00A0C93EC93B  EFI System Partition
+	cmp.l	#$A2A0D0EB,(a1)		;MS Basic Data
+	bne.s	gdp_gpt_try_esp
+	cmp.l	#$E5B93344,4(a1)
+	bne.s	gdp_gpt_try_esp
+	cmp.l	#$87C068B6,8(a1)
+	bne.s	gdp_gpt_try_esp
+	cmp.l	#$B72699C7,12(a1)
+	beq.s	gdp_gpt_match
 
+gdp_gpt_try_esp:
+	cmp.l	#$28732AC1,(a1)		;EFI System Partition
+	bne.s	gdp_gpt_next
+	cmp.l	#$1FF8D211,4(a1)
+	bne.s	gdp_gpt_next
+	cmp.l	#$BA4B00A0,8(a1)
+	bne.s	gdp_gpt_next
+	cmp.l	#$C93EC93B,12(a1)
+	bne.s	gdp_gpt_next
+
+gdp_gpt_match:
 	;Found FAT partition - is it the one we want?
 	cmp.w	d2,d7			;d7 = FAT partition counter, d2 = requested index
 	beq.s	gdp_gpt_found
 	addq.w	#1,d7			;next FAT partition
 gdp_gpt_next:
-	addq.w	#1,d0			;next entry
-	bra.s	gdp_gpt_loop
+	addq.l	#1,d0			;next entry (32-bit)
+	bra.w	gdp_gpt_loop
 
 gdp_gpt_found:
 	;Get partition start and end LBA (little-endian, 64-bit)
@@ -5531,20 +5590,23 @@ gdp_gpt_found:
 	tst.l	d3
 	bne.s	gdp_gpt_cleanup		;beyond 32-bit addressing
 
-	;Calculate size and set partition info
+	;Verify partition end is within 32-bit range BEFORE touching
+	;any global state - a failed Test64 must not leave half-written
+	;FirstBlock/TotalBlocks/HiddenBlocks visible to the caller.
 	sub.l	d0,d1
 	addq.l	#1,d1			;size = last - first + 1
-	move.w	#2,FATType(a4)		;auto-detect FAT type
-	move.l	d0,FirstBlock(a4)
-	move.l	d1,TotalBlocks(a4)
-	clr.l	HiddenBlocks(a4)
-
-	;Verify partition end is within 32-bit range
+	move.l	d0,d2			;save first LBA across Test64
 	add.l	d1,d0
 	subq.l	#1,d0
 	bsr.w	Test64
 	tst.l	d0
 	beq.s	gdp_gpt_cleanup		;partition exceeds 4 Gbyte
+
+	;Range OK - commit partition info to globals
+	move.w	#2,FATType(a4)		;auto-detect FAT type
+	move.l	d2,FirstBlock(a4)
+	move.l	d1,TotalBlocks(a4)
+	clr.l	HiddenBlocks(a4)
 
 	;Restore d3 and use shared boot block validation
 	move.w	(sp)+,d3		;restore disk status
@@ -5721,7 +5783,7 @@ gdp_5:
 	subq.l	#1,d0
 	move.l	d0,ClusterBlockMask(a4)
 	addq.l	#1,d0
-	bsr.w	Log2
+	LOG2
 	move.w	d0,ClusterShift(a4)
 	moveq.l	#0,d1
 	move.w	BlockSize(a4),d1
@@ -5733,7 +5795,7 @@ gdp_5:
 	moveq.l	#0,d0
 	move.b	NumFATCopies(a4),d0
 	move.l	BlocksPerFAT(a4),d1
-	bsr.w	UMul32
+	UMUL32
 	moveq.l	#0,d1
 	move.w	FATStartBlock(a4),d1
 	add.l	d0,d1			;first Block # after FATs
@@ -5803,7 +5865,7 @@ gdp_end:
 	bsr.w	DoTimer
 	move.w	d3,d0
 	ext.l	d0
-	movem.l	(sp)+,d2-d4/a2
+	movem.l	(sp)+,d2-d7/a2
 	unlk	a5
 	rts
 
@@ -5947,7 +6009,7 @@ alo_fatsize:
 	lsl.l	#1,d1			;Nibbles per block
 	add.l	d1,d0
 	subq.l	#1,d0			;round up
-	bsr.w	UDivMod32
+	UDIVMOD32
 	move.l	d0,BlocksPerFAT(a4)
 	moveq.l	#1,d1			;1 (FAT12, FAT16) or..
 	tst.w	FATType(a4)
@@ -5985,7 +6047,7 @@ rge_again:
 	move.l	FirstBlock(a4),d0
 	lsr.l	d3,d0
 	move.l	d2,d1
-	bsr.w	UDivMod32
+	UDIVMOD32
 	tst.l	d1
 	bne.s	rge_pseudo		;no whole cylinder
 
@@ -5994,7 +6056,7 @@ rge_again:
 	add.l	TotalBlocks(a4),d0
 	lsr.l	d3,d0
 	move.l	d2,d1
-	bsr.w	UDivMod32
+	UDIVMOD32
 	tst.l	d1
 	bne.s	rge_pseudo		;dito
 
@@ -6451,16 +6513,16 @@ dge_1:
 	lsl.l	d4,d0
 	move.w	d0,BlocksPerTrack(a4)
 	lsr.l	d4,d0
-	bsr.w	UMul32
+	UMUL32
 	move.l	d0,CylSectors(a4)
 	move.l	d0,d3
 	move.l	EnvecBuf+DE_LowCyl(a4),d1
-	bsr.w	UMul32
+	UMUL32
 	lsl.l	d4,d0
 	move.l	d0,FirstBlock(a4)
 	move.l	d3,d0
 	move.l	d2,d1
-	bsr.w	UMul32
+	UMUL32
 	move.l	d0,TotalSectors(a4)
 	lsl.l	d4,d0			;LastBlock + 1, see below
 	move.l	d0,d1
@@ -8742,7 +8804,7 @@ rf_fat:
 	add.l	d0,d3			;..try next FAT copy..
 	moveq.l	#0,d1
 	move.b	NumFATCopies(a4),d1
-	bsr.w	UMul32
+	UMUL32
 	cmp.l	d0,d3
 	bcs.s	rf_fat
 
@@ -10780,12 +10842,12 @@ SetFileDate:
 	move.l	a5,a1
 	move.l	(a0),d0			;DS_Ticks
 	move.l	#60*50,d1
-	bsr.w	UDivMod32
+	UDIVMOD32
 	move.l	d1,-(a1)
 	add.l	-(a0),d0		;DS_Mins
 	moveq.l	#(24*60)>>5,d1
 	lsl.l	#5,d1
-	bsr.w	UDivMod32
+	UDIVMOD32
 	move.l	d1,-(a1)
 	add.l	-(a0),d0		;DS_Days
 	move.l	d0,-(a1)
@@ -11061,7 +11123,7 @@ SecurityErase:
 ;- - open progresss window - - - - - - - - - - - - - - - - -
 
 	move.l	d3,d0
-	bsr.w	Log2
+	LOG2
 	subq.w	#6,d0			;update progress display in 64..
 	bpl.s	se_1
 
@@ -11244,7 +11306,7 @@ ScanDisk:
 ;- - open progresss window - - - - - - - - - - - - - - - - -
 
 	move.l	d3,d0
-	bsr.w	Log2
+	LOG2
 	subq.w	#6,d0			;update progress bar in 64..
 	moveq.l	#0,d1
 	bset	d0,d1
@@ -11969,9 +12031,9 @@ sd_bar:
 	moveq.l	#0,d0
 	move.w	SD_BARWIDTH(a5),d0
 	move.l	SD_DONE(a5),d1
-	bsr.w	UMul32
+	UMUL32
 	move.l	SD_CLUSTERS(a5),d1
-	bsr.w	UDivMod32
+	UDIVMOD32
 	move.w	d0,d2
 	move.w	SD_BARPOS(a5),d0
 	cmp.w	d0,d2
@@ -12437,7 +12499,7 @@ Date2MS:
 	move.l	d2,d0
 	addq.l	#1,d0
 	move.l	#400*365+100-4+1,d1	;remove leap days:
-	bsr.w	UDivMod32
+	UDIVMOD32
 	move.l	d2,d1
 	sub.l	d0,d1			;-1 every 400 years
 	move.l	d1,d0
@@ -12677,7 +12739,7 @@ Num2Str:
 	move.l	a1,a0		;remember buffer start
 n2s_loop1:
 	moveq.l	#10,d1
-	bsr.s	UDivMod32
+	UDIVMOD32
 	or.b	#'0',d1
 	move.b	d1,(a1)+	;append digit
 	tst.l	d0
@@ -12700,7 +12762,8 @@ n2s_end:
 	movem.l	(sp)+,d0-d2/a0
 	rts
 
-;*** longword math *****************************************
+;*** longword math (68000 fallbacks; 020+ inlines via macros) ***
+	ifnd	__68020__
 ; d0 *= d1
 
 UMul32:
@@ -12782,6 +12845,8 @@ lg2_loop:
 	move.l	d1,d0
 	move.l	(sp)+,d1
 	rts
+
+	endif	;__68020__
 
 ;*** from dos.library **************************************
 
