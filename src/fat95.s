@@ -4605,34 +4605,9 @@ _r_1:
 	bsr.w	SafeDoIO
 	bra.s	_r_check
 _r_scsi:
-	move.w	#HD_SCSICMD,IO_Command(a2)
-	moveq.l	#SCSI_Sizeof,d0
-	move.l	d0,IO_Length(a2)
-	lea	SCSIStruct(a4),a0
-	move.l	a0,IO_Data(a2)
-	move.l	a3,(a0)+		;SCSI_Data = &target
-	move.l	d6,(a0)+		;SCSI_Length
-	clr.l	(a0)+			;SCSI_Actual
-	lea	SCSICmdLine(a4),a1
-	move.l	a1,(a0)+		;SCSI_Command
-	move.b	#READ10,(a1)+		;build command line
-	clr.b	(a1)+
-	move.l	d2,(a1)+
-	clr.b	(a1)+
-	rol.w	#8,d3
-	move.b	d3,(a1)+
-	rol.w	#8,d3
-	move.b	d3,(a1)+
-	clr.b	(a1)
-	move.w	#10,(a0)+		;SCSI_CmdLength
-	clr.w	(a0)+			;SCSI_CmdActual
-	move.b	#SCSIF_READ,(a0)+	;SCSI_Flags
-	clr.b	(a0)+			;SCSI_Status
-	clr.l	(a0)+			;SCSI_SenseData
-	clr.l	(a0)			;SCSI_SenseLength and SCSI_SenseActual
-	move.l	a2,a1
-	bsr.w	SafeDoIO
-	move.l	SCSIStruct+SCSI_Actual(a4),IO_Actual(a2)
+	moveq.l	#READ10,d0
+	moveq.l	#SCSIF_READ,d1
+	bsr.w	Do10byteScsi
 _r_check:
 	bsr.w	DiskSense
 	move.b	d0,LastReadError(a4)
@@ -4717,34 +4692,9 @@ _w_1:
 	bsr.w	SafeDoIO
 	bra.s	_w_check
 _w_scsi:
-	move.w	#HD_SCSICMD,IO_Command(a2)
-	moveq.l	#SCSI_Sizeof,d0
-	move.l	d0,IO_Length(a2)
-	lea	SCSIStruct(a4),a0
-	move.l	a0,IO_Data(a2)
-	move.l	a3,(a0)+		;SCSI_Data = &target
-	move.l	d6,(a0)+		;SCSI_Length
-	clr.l	(a0)+			;SCSI_Actual
-	lea	SCSICmdLine(a4),a1
-	move.l	a1,(a0)+		;SCSI_Command
-	move.b	#WRITE10,(a1)+		;build command line
-	clr.b	(a1)+
-	move.l	d2,(a1)+
-	clr.b	(a1)+
-	rol.w	#8,d3
-	move.b	d3,(a1)+
-	rol.w	#8,d3
-	move.b	d3,(a1)+
-	clr.b	(a1)
-	move.w	#10,(a0)+		;SCSI_CmdLength
-	clr.w	(a0)+			;SCSI_CmdActual
-	move.b	#SCSIF_WRITE,(a0)+	;SCSI_Flags
-	clr.b	(a0)+			;SCSI_Status
-	clr.l	(a0)+			;SCSI_SenseData
-	clr.l	(a0)			;SCSI_SenseLength and SCSI_SenseActual
-	move.l	a2,a1
-	bsr.w	SafeDoIO
-	move.l	SCSIStruct+SCSI_Actual(a4),IO_Actual(a2)
+	moveq.l	#WRITE10,d0
+	moveq.l	#SCSIF_WRITE,d1
+	bsr.w	Do10byteScsi
 _w_check:
 	bsr.w	DiskSense
 	tst.b	d0
@@ -4776,6 +4726,47 @@ _w_error:
 
 	move.w	#225,ErrorNum(a4)
 	bra.s	_w_end
+
+;--- shared SCSI 10-byte command builder/dispatcher --------
+; d0 <- READ10 / WRITE10 opcode byte
+; d1 <- SCSIF_READ / SCSIF_WRITE direction byte
+; d2 <- starting block number (LBA, big-endian after the byte writes)
+; d3 <- block count, low 16 bits (clobbered by the byte-swap)
+; d6 <- transfer length in bytes
+; a2 <- &IORequest (DiskRequest)
+; a3 <- &data buffer
+; uses a0/a1 as scratch; preserves d2/d6/a2/a3
+; -> d0 from SafeDoIO (IO_Error)
+
+Do10byteScsi:
+	move.w	#HD_SCSICMD,IO_Command(a2)
+	move.l	#SCSI_Sizeof,IO_Length(a2)
+	lea	SCSIStruct(a4),a0
+	move.l	a0,IO_Data(a2)
+	move.l	a3,(a0)+		;SCSI_Data = &target
+	move.l	d6,(a0)+		;SCSI_Length
+	clr.l	(a0)+			;SCSI_Actual
+	lea	SCSICmdLine(a4),a1
+	move.l	a1,(a0)+		;SCSI_Command
+	move.b	d0,(a1)+		;build command line
+	clr.b	(a1)+
+	move.l	d2,(a1)+
+	clr.b	(a1)+
+	rol.w	#8,d3
+	move.b	d3,(a1)+
+	rol.w	#8,d3
+	move.b	d3,(a1)+
+	clr.b	(a1)
+	move.w	#10,(a0)+		;SCSI_CmdLength
+	clr.w	(a0)+			;SCSI_CmdActual
+	move.b	d1,(a0)+		;SCSI_Flags
+	clr.b	(a0)+			;SCSI_Status
+	clr.l	(a0)+			;SCSI_SenseData
+	clr.l	(a0)			;SCSI_SenseLength and SCSI_SenseActual
+	move.l	a2,a1
+	bsr.w	SafeDoIO
+	move.l	SCSIStruct+SCSI_Actual(a4),IO_Actual(a2)
+	rts
 
 ;--- read 1 Block ------------------------------------------
 ; d0 <- ULONG Block #;
