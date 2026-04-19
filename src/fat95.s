@@ -3691,6 +3691,24 @@ ReadLE_W	macro			;\3 = LE word at (\1)(\2), zero-extended
 		endif
 		endm
 
+;--- copy a little-endian longword from (a1)+ to a host-endian
+; longword field at \1(a4), using \2 as scratch on 68020+.  On 68000
+; we keep the original four-move.b sequence so the 68000 binary does
+; not grow; on 68020+ we collapse to one move.l + ReverseL + move.l.
+
+MoveLE32_BE	macro
+		ifd	__68020__
+		move.l	(a1)+,\2
+		ReverseL \2
+		move.l	\2,\1(a4)
+		else
+		move.b	(a1)+,(3+\1)(a4)
+		move.b	(a1)+,(2+\1)(a4)
+		move.b	(a1)+,(1+\1)(a4)
+		move.b	(a1)+,\1(a4)
+		endif
+		endm
+
 
 ; a0 <- struct MSDirEntry *source;
 ; a1 <- struct MSDirEntry *target;
@@ -5734,30 +5752,18 @@ gdp_bootfound:
 	tst.l	TotalBlocks(a4)
 	bne.s	gdp_2
 
-	move.b	(a1)+,HiddenBlocks+3(a4)
-	move.b	(a1)+,HiddenBlocks+2(a4)
-	move.b	(a1)+,HiddenBlocks+1(a4)
-	move.b	(a1)+,HiddenBlocks(a4)
+	MoveLE32_BE HiddenBlocks,d0
 
-	move.b	(a1)+,TotalBlocks+3(a4)
-	move.b	(a1)+,TotalBlocks+2(a4)
-	move.b	(a1)+,TotalBlocks+1(a4)
-	move.b	(a1)+,TotalBlocks(a4)	;if >= 64K
+	MoveLE32_BE TotalBlocks,d0	;if >= 64K
 gdp_2:
 	tst.w	RootDirEntries(a4)
 	bne.s	gdp_3
 
-	move.b	(a1)+,BlocksPerFAT+3(a4)
-	move.b	(a1)+,BlocksPerFAT+2(a4)
-	move.b	(a1)+,BlocksPerFAT+1(a4)
-	move.b	(a1)+,BlocksPerFAT(a4)	;FAT32
+	MoveLE32_BE BlocksPerFAT,d0	;FAT32
 
 	lea	44(a0),a1
 
-	move.b	(a1)+,RootCluster+3(a4)
-	move.b	(a1)+,RootCluster+2(a4)
-	move.b	(a1)+,RootCluster+1(a4)
-	move.b	(a1)+,RootCluster(a4)
+	MoveLE32_BE RootCluster,d0
 
 	move.b	(a1)+,FSInfoBlock+3(a4)
 	move.b	(a1)+,FSInfoBlock+2(a4)
@@ -5770,10 +5776,7 @@ gdp_3:
 	clr.l	FSInfoBlock(a4)
 	lea	39(a0),a1
 gdp_4:
-	move.b	(a1)+,SerialNum+3(a4)
-	move.b	(a1)+,SerialNum+2(a4)
-	move.b	(a1)+,SerialNum+1(a4)
-	move.b	(a1)+,SerialNum(a4)
+	MoveLE32_BE SerialNum,d0
 
 	cmp.w	BlockSize(a4),d2
 	beq.s	gdp_5			;keep Block size or..
