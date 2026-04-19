@@ -1187,9 +1187,8 @@ s_3:
 	tst.w	NewFlags(a4)
 	beq.s	s_4			;no deferred work
 
-	clr.l	-(sp)
+	moveq.l	#0,d0
 	bsr.w	UpdateDisk
-	addq.w	#4,sp
 	bra.w	s_getmsg
 s_4:
 	tst.w	PleaseUnmount(a4)
@@ -1552,9 +1551,8 @@ Action26:
 ;--- ACTION_FLUSH ------------------------------------------
 
 Action27:
-	pea	(TRUE).w		;"write immediately"
+	moveq.l	#TRUE,d0		;"write immediately"
 	bsr.w	UpdateDisk
-	addq.w	#4,sp
 	bra.w	s_return
 
 ;--- ACTION_SET_COMMENT ------------------------------------
@@ -2265,9 +2263,8 @@ CloseDisk:
 	tst.w	NewFlags(a4)
 	beq.s	cd_free			;perform deferred actions..
 
-	pea	(TRUE).w
+	moveq.l	#TRUE,d0
 	bsr.w	UpdateDisk		;..now
-	addq.w	#4,sp
 cd_free:
 	clr.l	BackgroundJob(a4)	;abort background activity
 	bsr.w	TouchVolumeNode
@@ -4243,9 +4240,8 @@ sdi_loop:
 	bsr.w	WriteXMSDE		;..and write back
 	addq.l	#8,sp
 sdi_update:
-	pea	(TRUE).w		;"immediately"
+	moveq.l	#TRUE,d0		;"immediately"
 	bsr.w	UpdateDisk
-	addq.l	#4,sp
 	moveq.l	#TRUE,d2		;"OK"
 sdi_end:
 	bsr.s	CacheFree
@@ -4394,7 +4390,7 @@ cafl_end:
 ; -> BOOL success;
 
 UpdateDisk:
-	move.l	d2,-(sp)
+	movem.l	d0/d2,-(sp)		;save arg (d0) and caller's d2
 	btst	#3,NewFlags+1(a4)
 	beq.s	ud_blocks
 
@@ -4406,7 +4402,7 @@ ud_blocks:
 
 	bsr.s	CacheFlush
 ud_check:
-	tst.l	8(sp)
+	tst.l	(sp)			;arg "immediate" still on stack
 	bne.s	ud_now
 
 	moveq.l	#12,d0
@@ -4441,8 +4437,8 @@ ud_done:
 	clr.w	NewFlags(a4)
 
 ud_end:
+	movem.l	(sp)+,d0/d2		;restore d2 and discard arg slot
 	moveq.l	#TRUE,d0
-	move.l	(sp)+,d2
 	rts
 
 ;--- update FileSysInfoBlock -------------------------------
@@ -11246,9 +11242,8 @@ se_stop:
 	move.l	a3,a1
 	CALLEXEC FreeMem
 se_update:
-	pea	(-1).w
+	moveq.l	#-1,d0
 	bsr.w	UpdateDisk
-	addq.l	#4,sp
 	move.l	SD_WINDOW(a5),d0
 	beq.s	se_end
 
@@ -11657,9 +11652,8 @@ sd_lsbreak:
 ;- - all done! - - - - - - - - - - - - - - - - - - - - - - -
 
 sd_abort:
-	pea	(-1).w
+	moveq.l	#-1,d0
 	bsr.w	UpdateDisk
-	addq.l	#4,sp
 	lea	SD_ERRORS(a5),a1
 	move.l	-(a1),d1
 	add.l	-(a1),d1
