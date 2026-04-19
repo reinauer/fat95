@@ -59,6 +59,44 @@ LOG2	macro				;d0 = log2(d0), d0 != 0
 	endif
 	endm
 
+; --- 68000-only clr.l <mem> avoidance --------------------------
+; On 68000/010 clr.l <ea> does a useless dummy read of the
+; destination before writing zero.  68020+ skips that read, so
+; clr.l is the right choice there.  Use ZCLRL via a pre-zeroed
+; data register so the 68000 build emits move.l Dn,<ea> while
+; the 020+ build keeps native clr.l (and the binary stays
+; bit-identical on that tier).
+
+ZCLRL_INIT macro			;zero scratch reg \1 (no-op on 020+)
+	ifnd	__68020__
+	moveq.l	#0,\1
+	endif
+	endm
+
+ZCLRL	macro				;clear long at \1; \2 = zero reg (ignored on 020+)
+	ifd	__68020__
+	clr.l	\1
+	else
+	move.l	\2,\1
+	endif
+	endm
+
+ZCLRW	macro				;clear word at \1; \2 = zero reg (ignored on 020+)
+	ifd	__68020__
+	clr.w	\1
+	else
+	move.w	\2,\1
+	endif
+	endm
+
+ZCLRB	macro				;clear byte at \1; \2 = zero reg (ignored on 020+)
+	ifd	__68020__
+	clr.b	\1
+	else
+	move.b	\2,\1
+	endif
+	endm
+
 _AbsExecBase	= 4
 
 Forbid		= -132
@@ -4749,20 +4787,21 @@ Do10byteScsi:
 	lea	SCSICmdLine(a4),a1
 	move.l	a1,(a0)+		;SCSI_Command
 	move.b	d0,(a1)+		;build command line
-	clr.b	(a1)+
+	ZCLRL_INIT d0			;d0 dead from here; zero it for every remaining clear
+	ZCLRB	(a1)+,d0
 	move.l	d2,(a1)+
-	clr.b	(a1)+
+	ZCLRB	(a1)+,d0
 	rol.w	#8,d3
 	move.b	d3,(a1)+
 	rol.w	#8,d3
 	move.b	d3,(a1)+
-	clr.b	(a1)
+	ZCLRB	(a1),d0
 	move.w	#10,(a0)+		;SCSI_CmdLength
-	clr.w	(a0)+			;SCSI_CmdActual
+	ZCLRW	(a0)+,d0		;SCSI_CmdActual
 	move.b	d1,(a0)+		;SCSI_Flags
-	clr.b	(a0)+			;SCSI_Status
-	clr.l	(a0)+			;SCSI_SenseData
-	clr.l	(a0)			;SCSI_SenseLength and SCSI_SenseActual
+	ZCLRB	(a0)+,d0		;SCSI_Status
+	ZCLRL	(a0)+,d0		;SCSI_SenseData
+	ZCLRL	(a0),d0			;SCSI_SenseLength and SCSI_SenseActual
 	move.l	a2,a1
 	bsr.w	SafeDoIO
 	move.l	SCSIStruct+SCSI_Actual(a4),IO_Actual(a2)
@@ -6186,21 +6225,22 @@ DiskStatus:
 	bra.s	dst_ok
 dst_scsi:
 	lea	SCSIStruct(a4),a0
-	clr.l	(a0)+			;SCSI_Data
-	clr.l	(a0)+			;SCSI_Length
-	clr.l	(a0)+			;SCSI_Actual
+	ZCLRL_INIT d0			;d0 free at entry; zero once and reuse below
+	ZCLRL	(a0)+,d0		;SCSI_Data
+	ZCLRL	(a0)+,d0		;SCSI_Length
+	ZCLRL	(a0)+,d0		;SCSI_Actual
 	lea	SCSICmdLine(a4),a1
 	move.l	a1,(a0)+		;SCSI_Command
 	move.w	#6,(a0)+		;SCSI_CmdLength
-	clr.w	(a0)+			;SCSI_CmdActual
+	ZCLRW	(a0)+,d0		;SCSI_CmdActual
 	move.b	#SCSIF_READ,(a0)+	;SCSI_Flags
-	clr.b	(a0)+			;SCSI_Status
-	clr.l	(a0)+			;SCSI_SenseData
-	clr.l	(a0)+			;SCSI_SenseLength, _SenseActual
+	ZCLRB	(a0)+,d0		;SCSI_Status
+	ZCLRL	(a0)+,d0		;SCSI_SenseData
+	ZCLRL	(a0)+,d0		;SCSI_SenseLength, _SenseActual
 	move.b	#TESTUNITREADY,(a1)+	;the command line
-	clr.b	(a1)+
-	clr.w	(a1)+
-	clr.w	(a1)+
+	ZCLRB	(a1)+,d0
+	ZCLRW	(a1)+,d0
+	ZCLRW	(a1)+,d0
 	move.l	DiskRequest(a4),a1
 	move.w	#HD_SCSICMD,IO_Command(a1)
 	moveq.l	#SCSI_Sizeof,d0
