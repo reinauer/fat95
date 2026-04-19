@@ -2583,7 +2583,7 @@ BStr2DiskName:
 	beq.s	b2d_end			;empty Name
 
 	move.w	d0,d1
-	moveq.l	#11,d2
+	moveq.l	#11-1,d2
 b2d_loop:
 	moveq.l	#' ',d0			;space pad
 	subq.w	#1,d1
@@ -2593,8 +2593,7 @@ b2d_loop:
 	bsr.s	Char2MS			;..convert and..
 b2d_char:
 	move.b	d0,(a2)+		;..write
-	subq.w	#1,d2
-	bgt.s	b2d_loop
+	dbf	d2,b2d_loop
 
 	move.b	#$28,(a2)		;MSDE_Flags
 	sub.w	#11,a2
@@ -3386,25 +3385,23 @@ InvertCodePage:
 	move.l	CodePage(a4),d0
 	beq.w	icp_oem
 
-	moveq.l	#256/4,d1
+	moveq.l	#256/4-1,d1
 icp_1:
 	clr.l	-(sp)			;head
-	subq.w	#1,d1
-	bgt.s	icp_1
+	dbf	d1,icp_1
 
 	move.l	d0,a0
 	moveq.l	#0,d0
-	move.w	#256,d1
+	move.w	#256-1,d1
 icp_2:
 	move.b	(a0),d0
 	addq.l	#2,a0
 	move.b	#1,(sp,d0.l)		;mark used pages
-	subq.w	#1,d1
-	bgt.s	icp_2
+	dbf	d1,icp_2
 
 	move.l	sp,a0
 	moveq.l	#1,d0
-	move.w	#256,d1
+	move.w	#256-1,d1
 icp_3:
 	tst.b	(a0)
 	beq.s	icp_4
@@ -3413,8 +3410,7 @@ icp_3:
 	addq.w	#1,d0
 icp_4:
 	addq.l	#1,a0
-	subq.w	#1,d1
-	bgt.s	icp_3
+	dbf	d1,icp_3
 
 	lsl.w	#8,d0
 	move.l	d0,InvCodeLen(a4)
@@ -3425,11 +3421,10 @@ icp_4:
 
 	move.l	sp,a0
 	move.l	d0,a1
-	moveq.l	#256/4,d1
+	moveq.l	#256/4-1,d1
 icp_5:
 	move.l	(a0)+,(a1)+		;copy head
-	subq.w	#1,d1
-	bgt.s	icp_5
+	dbf	d1,icp_5
 
 	move.l	InvCodeLen(a4),d1
 	lsr.l	#2,d1
@@ -3468,13 +3463,12 @@ icp_oem:
 	beq.s	icp_end
 
 	move.l	d0,a1
-	moveq.l	#32,d0
+	moveq.l	#32-1,d0
 	move.l	#$80818283,d1		;..for chars 128 ~ 255..
 icp_ofill:
 	move.l	d1,(a1)+		;..of standard names
 	add.l	#$04040404,d1
-	subq.w	#1,d0
-	bgt.s	icp_ofill
+	dbf	d0,icp_ofill
 
 	move.l	OemPage(a4),a0
 	add.w	#64,a0
@@ -3687,13 +3681,12 @@ RCopyMSDE:
 	move.l	(a0)+,(a1)+
 R2CopyMSDE:
 	move.w	(a0)+,(a1)+		;..MSDE_CMilSecs
-	moveq.l	#(MSDE_FSize-MSDE_CTime)/2,d1
+	moveq.l	#(MSDE_FSize-MSDE_CTime)/2-1,d1
 rcm_loop:
 	move.w	(a0)+,d0
 	ReverseW d0
 	move.w	d0,(a1)+		;reverse CTime through 1L words,..
-	subq.w	#1,d1
-	bgt.s	rcm_loop
+	dbf	d1,rcm_loop
 
 	move.l	(a0),d0
 	ReverseL d0
@@ -3822,11 +3815,10 @@ tbb_1:
 
 	lea	tbb_default(pc),a0
 tbb_2:
-	moveq.l	#11,d0
+	moveq.l	#11-1,d0
 tbb_nloop:
 	move.b	(a0)+,(a1)+		;..update name as well
-	subq.w	#1,d0
-	bgt.s	tbb_nloop
+	dbf	d0,tbb_nloop
 tbb_end:
 	move.l	(sp)+,a2
 	unlk	a5
@@ -3939,12 +3931,11 @@ fd_t4:
 	add.w	#BootSample32-BootSample12,a0
 fmd_b1:
 	move.l	a2,a1
-	moveq.l	#512/8,d0
+	moveq.l	#512/8-1,d0
 fmd_bcopy:
 	move.l	(a0)+,(a1)+		;copy standard boot block
 	move.l	(a0)+,(a1)+
-	subq.w	#1,d0
-	bgt.s	fmd_bcopy
+	dbf	d0,fmd_bcopy
 
 	lea	24(a2),a1		;update parameters
 	move.b	BlocksPerTrack+1(a4),(a1)+
@@ -4005,11 +3996,10 @@ fmd_u3:
 	move.b	SerialNum+1(a4),(a1)+
 	move.b	SerialNum(a4),(a1)+
 	lea	-12(a5),a0
-	moveq.l	#11,d0
+	moveq.l	#11-1,d0
 fmd_u4:
 	move.b	(a0)+,(a1)+		;..Name
-	subq.w	#1,d0
-	bgt.s	fmd_u4
+	dbf	d0,fmd_u4
 
 	tst.w	d4
 	ble.s	fmd_u5			;FAT12 sample boot block or..
@@ -4031,19 +4021,17 @@ fmd_u5:
 
 	lea	ExtBoot32(pc),a0
 	move.l	a2,a1
-	moveq.l	#(ExtBootEnd-ExtBoot32)/8,d0
+	moveq.l	#(ExtBootEnd-ExtBoot32)/8-1,d0
 fmd_xbcopy:
 	move.l	(a0)+,(a1)+
 	move.l	(a0)+,(a1)+
-	subq.w	#1,d0
-	bgt.s	fmd_xbcopy
+	dbf	d0,fmd_xbcopy
 
-	moveq.l	#(ExtBoot32+508-ExtBootEnd)/4,d0
+	moveq.l	#(ExtBoot32+508-ExtBootEnd)/4-1,d0
 	moveq.l	#0,d1
 fmd_xbfill:
 	move.l	d1,(a1)+
-	subq.w	#1,d0
-	bgt.s	fmd_xbfill
+	dbf	d0,fmd_xbfill
 
 	moveq.l	#2,d0
 	move.l	a2,a0
@@ -4082,14 +4070,13 @@ fmd_xbfill:
 
 	bsr.w	fmd_clrbuf
 	moveq.l	#3,d2
-	moveq.l	#3,d3
+	moveq.l	#3-1,d3
 fmd_clr1:
 	move.l	d2,d0
 	move.l	a2,a0
 	bsr.w	_WBlock			;blocks #3..5
 	addq.l	#1,d2
-	subq.w	#1,d3
-	bgt.s	fmd_clr1
+	dbf	d3,fmd_clr1
 
 	moveq.l	#9,d2
 	move.w	FATStartBlock(a4),d3
@@ -7027,12 +7014,11 @@ lob_ktentry:
 	bra.s	lob_ktnext
 lob_ktclear:
 	moveq.l	#1,d4			;"Block changed"..
-	moveq.l	#MSDE_Sizeof/8,d0
+	moveq.l	#MSDE_Sizeof/8-1,d0
 lob_ktloop:
 	clr.l	(a0)+
 	clr.l	(a0)+			;..because entry now deleted
-	subq.w	#1,d0
-	bgt.s	lob_ktloop
+	dbf	d0,lob_ktloop
 
 	bsr.w	NextMSDE
 	tst.w	d3
