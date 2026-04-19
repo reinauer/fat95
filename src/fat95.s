@@ -7037,10 +7037,18 @@ lob_ktentry:
 lob_ktclear:
 	moveq.l	#1,d4			;"Block changed"..
 	moveq.l	#MSDE_Sizeof/8-1,d0
+	ifd	__68020__
 lob_ktloop:
-	clr.l	(a0)+
+	clr.l	(a0)+			;020+: write-only, no RMW penalty
 	clr.l	(a0)+			;..because entry now deleted
 	dbf	d0,lob_ktloop
+	else
+	moveq.l	#0,d1			;68000: cheaper than clr.l (an)+,
+lob_ktloop:				;which read-modify-writes
+	move.l	d1,(a0)+
+	move.l	d1,(a0)+		;..because entry now deleted
+	dbf	d0,lob_ktloop
+	endif
 
 	bsr.w	NextMSDE
 	tst.w	d3
@@ -7969,11 +7977,20 @@ xtd_loop:
 	bsr.w	BlockChanged
 	move.l	a2,a0
 	move.w	BlockSize(a4),d1
+	ifd	__68020__
 xtd_clear:
-	clr.l	(a0)+
+	clr.l	(a0)+			;020+: clr.l writes only, no RMW
 	clr.l	(a0)+			;..zero filled
 	subq.w	#8,d1
 	bgt.s	xtd_clear
+	else
+	moveq.l	#0,d2			;68000: clr.l (an)+ is read-modify-
+xtd_clear:				;write; cheaper to splash a Dn=0
+	move.l	d2,(a0)+		;through the loop instead.
+	move.l	d2,(a0)+		;..zero filled
+	subq.w	#8,d1
+	bgt.s	xtd_clear
+	endif
 
 	tst.l	EXD_CLUSTER(a5)
 	beq.s	xtd_init		;1. Block of new dir
