@@ -1147,7 +1147,7 @@ s_domsg:
 	bcc.s	s_unknown
 s_jump:
 	lea	s_tab(pc),a0
-	lsl.l	#1,d0
+	add.l	d0,d0
 	add.w	(a0,d0.l),a0
 	jmp	(a0)
 s_unknown:
@@ -3456,7 +3456,7 @@ icp_oem:
 	beq.s	icp_end			;if requested..
 
 	moveq.l	#64,d0
-	lsl.l	#1,d0
+	add.l	d0,d0
 	moveq.l	#MEMF_NORM,d1
 	CALLEXEC AllocMem
 	move.l	d0,InvOemPage(a4)	;..same thing again..
@@ -3502,7 +3502,7 @@ fit_1:
 	beq.s	fit_end
 
 	moveq.l	#64,d0
-	lsl.l	#1,d0
+	add.l	d0,d0
 	move.l	d1,a1
 	CALLEXEC FreeMem
 fit_end:
@@ -5069,7 +5069,7 @@ wbb_block:
 	move.l	(a3),d5
 	clr.l	(a3)+
 wbb_test:
-	lsl.l	#1,d5
+	add.l	d5,d5
 	bcc.s	wbb_no
 
 	tst.l	d2
@@ -5926,7 +5926,7 @@ alo_fat12:
 
 	moveq.l	#1,d1			;"large" FAT12 for CompactFlash
 alo_12loop:
-	lsl.l	#1,d1
+	add.l	d1,d1
 	lsr.l	#1,d2
 	cmp.l	#MINCLUSTERS16,d2
 	bcc.s	alo_12loop		;find a suitable Cluster size
@@ -5944,7 +5944,7 @@ alo_ddfloppy:
 	moveq.l	#7,d3			;7 root dir blocks
 alo_12done:
 	move.l	d2,d0
-	lsl.l	#1,d2
+	add.l	d2,d2
 	add.l	d0,d2			;Nibbles per 12bit FAT
 	bra.s	alo_fatsize
 
@@ -5978,10 +5978,10 @@ alo_fat32:
 	cmp.l	#60*1024*256+1,d2
 	bcs.s	alo_31			;> 60 Gbyte: 16k Clusters
 
-	lsl.l	#1,d1
+	add.l	d1,d1
 	lsr.l	#1,d2
 alo_31:
-	lsl.l	#1,d1
+	add.l	d1,d1
 	lsr.l	#1,d2
 alo_32:
 	lsl.l	#3,d2			;Nibbles per 32bit FAT
@@ -5993,7 +5993,7 @@ alo_fatsize:
 	move.l	d2,d0			;Nibbles per FAT
 	moveq.l	#0,d1
 	move.w	BlockSize(a4),d1
-	lsl.l	#1,d1			;Nibbles per block
+	add.l	d1,d1			;Nibbles per block
 	add.l	d1,d0
 	subq.l	#1,d0			;round up
 	UDIVMOD32
@@ -6005,7 +6005,7 @@ alo_fatsize:
 	moveq.l	#32,d1			;..32 head blocks (FAT32)
 alo_1:
 	move.w	d1,FATStartBlock(a4)
-	lsl.l	#1,d0			;blocks for 2 FAT copies
+	add.l	d0,d0			;blocks for 2 FAT copies
 	add.l	d0,d1
 	move.l	d1,RootStartBlock(a4)
 	add.l	d3,d1
@@ -7630,7 +7630,7 @@ wxms_cwrite1:
 	beq.s	wxms_cskip2
 wxms_cskip1:
 	addq.l	#1,a1
-	lsl.l	#1,d5
+	add.l	d5,d5
 	bcs.s	wxms_cwrite1
 	bne.s	wxms_cskip1
 	bra.s	wxms_bready
@@ -7639,7 +7639,7 @@ wxms_cwrite2:
 	move.b	d1,(a1)			;$ffff pad
 wxms_cskip2:
 	addq.l	#1,a1
-	lsl.l	#1,d5
+	add.l	d5,d5
 	bcs.s	wxms_cwrite2
 	bne.s	wxms_cskip2
 	bra.s	wxms_bready
@@ -7664,7 +7664,7 @@ wxms_uput:
 	beq.s	wxms_cskip2
 wxms_uskip:
 	addq.l	#1,a1
-	lsl.l	#1,d5
+	add.l	d5,d5
 	bcs.s	wxms_uchar
 	bne.s	wxms_uskip
 	bra.s	wxms_bready
@@ -7782,7 +7782,7 @@ rxms_xcread:
 	beq.s	rxms_xcstop
 rxms_xcskip:
 	addq.l	#1,a0
-	lsl.l	#1,d5
+	add.l	d5,d5
 	bcs.s	rxms_xcread
 	bne.s	rxms_xcskip
 rxms_xcdone:
@@ -7829,7 +7829,7 @@ rxms_uwrite:
 	beq.s	rxms_xcstop
 rxms_uskip:
 	addq.l	#1,a0
-	lsl.l	#1,d5
+	add.l	d5,d5
 	bcs.s	rxms_uchar
 	bne.s	rxms_uskip
 	bra.s	rxms_xcdone
@@ -8650,7 +8650,7 @@ TouchXLock:
 	beq.s	txl_write
 
 	move.l	DS_Ticks-DS_Sizeof(a5),d1
-	lsl.l	#1,d1
+	add.l	d1,d1
 	divu.w	#200,d1
 	swap	d1
 	move.b	d1,MSDE_CMilSecs(a0)	;0.00 ~ 1.99 seconds
@@ -9347,7 +9347,7 @@ GetFATEntry:
 	bra.s	gfe_special
 
 gfe_16bit:
-	lsl.l	#1,d1			;16bit entries
+	add.l	d1,d1			;16bit entries
 	add.l	d1,a0
 	moveq.l	#0,d0
 	move.w	(a0),d0
@@ -9415,7 +9415,7 @@ PutFATEntry:
 	bra.s	pfe_ok
 
 pfe_16bit:
-	lsl.l	#1,d1			;16bit entries
+	add.l	d1,d1			;16bit entries
 	add.l	d1,a0
 	ReverseW d2
 	move.w	d2,(a0)
