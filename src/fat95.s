@@ -5602,24 +5602,29 @@ gdp_gpt_loop:
 	;Check partition type GUID (full 16 bytes) against FAT-carrying GUIDs:
 	;  EBD0A0A2-B9E5-4433-87C0-68B6B72699C7  Microsoft Basic Data
 	;  C12A7328-F81F-11D2-BA4B-00A0C93EC93B  EFI System Partition
-	cmp.l	#$A2A0D0EB,(a1)		;MS Basic Data
-	bne.s	gdp_gpt_try_esp
-	cmp.l	#$E5B93344,4(a1)
-	bne.s	gdp_gpt_try_esp
-	cmp.l	#$87C068B6,8(a1)
-	bne.s	gdp_gpt_try_esp
-	cmp.l	#$B72699C7,12(a1)
-	beq.s	gdp_gpt_match
+	;
+	;Outer dbra loop over gdp_gpt_guids table (d1 = remaining GUIDs - 1).
+	;Inner dbne loop: a3 walks entry GUID, a0 walks table; branches while
+	;equal (Z=1), falls through on first mismatch (Z=0) without decrementing
+	;d3, so lsl.l #2,d3 / add.l d3,a0 skips the unread longs of that table
+	;entry and leaves a0 at the start of the next one for the outer loop.
+	lea	gdp_gpt_guids(pc),a0
+	moveq.l	#1,d1			;outer counter: 2 GUIDs (0-based for dbra)
+gdp_gpt_cmp_outer:
+	move.l	a1,a3			;reset entry GUID scan pointer
+	moveq.l	#3,d3			;inner counter: 4 longs per GUID
+gdp_gpt_cmp_inner:
+	cmpm.l	(a3)+,(a0)+
+	dbne	d3,gdp_gpt_cmp_inner	;branch while equal; fall through on mismatch
+	beq.s	gdp_gpt_match		;all 4 longs matched -> FAT partition
+	lsl.l	#2,d3			;bytes remaining in this table GUID
+	add.l	d3,a0			;skip to start of next table GUID
+	dbra	d1,gdp_gpt_cmp_outer	;try next GUID; fall through when exhausted
+	bra.s	gdp_gpt_next
 
-gdp_gpt_try_esp:
-	cmp.l	#$28732AC1,(a1)		;EFI System Partition
-	bne.s	gdp_gpt_next
-	cmp.l	#$1FF8D211,4(a1)
-	bne.s	gdp_gpt_next
-	cmp.l	#$BA4B00A0,8(a1)
-	bne.s	gdp_gpt_next
-	cmp.l	#$C93EC93B,12(a1)
-	bne.s	gdp_gpt_next
+gdp_gpt_guids:
+	dc.l	$A2A0D0EB,$E5B93344,$87C068B6,$B72699C7	;MS Basic Data
+	dc.l	$28732AC1,$1FF8D211,$BA4B00A0,$C93EC93B	;EFI System Partition
 
 gdp_gpt_match:
 	;Found FAT partition - is it the one we want?
