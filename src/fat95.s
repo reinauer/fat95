@@ -3668,6 +3668,29 @@ ReverseL	macro			;reverse longword
 		rol.w	#8,\1
 		endm
 
+;--- read a little-endian word from possibly-unaligned memory ---
+; ReadLE_W takes three parameters: a constant byte-offset, an address
+; register holding the base, and a data register receiving the host-
+; endian value.  E.g.  ReadLE_W 0,a0,d0
+;
+; On 68020+ the address can be unaligned, so the read is one move.w
+; plus a ReverseW.  On 68000 the read must be byte-by-byte; we
+; shift-and-pack into the destination register and clear the upper
+; bytes first so the macro doesn't depend on caller pre-clearing
+; the register.
+
+ReadLE_W	macro			;\3 = LE word at (\1)(\2), zero-extended
+		moveq.l	#0,\3
+		ifd	__68020__
+		move.w	(\1)(\2),\3
+		ReverseW \3
+		else
+		move.b	(1+\1)(\2),\3
+		lsl.w	#8,\3
+		move.b	(\1)(\2),\3
+		endif
+		endm
+
 
 ; a0 <- struct MSDirEntry *source;
 ; a1 <- struct MSDirEntry *target;
@@ -9357,10 +9380,7 @@ gfe_12bit:
 	add.w	d0,a0
 	lsr.w	#1,d0
 	add.w	d0,a0
-	moveq.l	#0,d0
-	move.b	1(a0),d0
-	rol.w	#8,d0
-	move.b	(a0),d0
+	ReadLE_W 0,a0,d0		;LE word holding the 12bit entry
 	lsr.w	#1,d1
 	bcc.s	gfe_12l
 
