@@ -59,6 +59,15 @@ LOG2	macro				;d0 = log2(d0), d0 != 0
 	endif
 	endm
 
+EXTBL	macro				;sign-extend byte \1 to longword
+	ifd	__68020__
+	extb.l	\1
+	else
+	ext.w	\1
+	ext.l	\1
+	endif
+	endm
+
 ; --- 68000-only clr.l <mem> avoidance --------------------------
 ; On 68000/010 clr.l <ea> does a useless dummy read of the
 ; destination before writing zero.  68020+ skips that read, so
@@ -1041,8 +1050,7 @@ s_uidone:
 	move.l	d1,(a1)+		;DE_TableSize
 s_envfill:
 	move.b	(a0)+,d0
-	ext.w	d0
-	ext.l	d0
+	EXTBL	d0
 	move.l	d0,(a1)+
 	subq.w	#1,d1
 	bgt.s	s_envfill
@@ -12375,8 +12383,7 @@ dreq_readerr:
 	bne.w	dreq_abort		;..dont report read errors
 
 	move.l	16(a5),-(sp)
-	ext.w	d0
-	ext.l	d0
+	EXTBL	d0
 	move.l	d0,-(sp)
 	move.l	DeviceNode(a4),a0
 	move.l	DOL_Name(a0),d1
