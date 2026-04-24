@@ -2026,7 +2026,6 @@ frl_loop:
 	move.l	(a2),d0
 	lsl.l	#2,d0
 	move.l	d0,a2			;&NextFileLock
-	tst.l	d0
 	beq.s	frl_last		;lock not in list??
 
 	cmp.l	8(a5),a2
@@ -2260,7 +2259,6 @@ umv_loop:
 	move.l	(a1),d0
 	lsl.l	#2,d0
 	move.l	d0,a1			;&nextDosList
-	tst.l	d0
 	beq.s	umv_last		;not in List??
 
 	cmp.l	a1,a2
@@ -2442,7 +2440,6 @@ od_loop:
 	move.l	(a2),d0
 	lsl.l	#2,d0
 	move.l	d0,a2			;&nextDosList
-	tst.l	d0
 	beq.s	od_last			;not in List
 
 	moveq.l	#DLT_VOLUME,d0
@@ -5640,7 +5637,6 @@ gdp_gpt_found:
 	move.l	32(a1),d0		;First LBA low
 	ReverseL d0
 	move.l	36(a1),d1		;First LBA high
-	tst.l	d1
 	bne.s	gdp_gpt_cleanup		;beyond 32-bit addressing
 
 	move.l	40(a1),d1		;Last LBA low
