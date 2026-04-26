@@ -38,7 +38,7 @@ UMUL32	macro				;d0 = d0 * d1 (u32)
 	ifd	__68020__
 	mulu.l	d1,d0
 	else
-	bsr.w	UMul32
+	bsr	UMul32
 	endif
 	endm
 
@@ -46,7 +46,7 @@ UDIVMOD32 macro				;d0 = d0/d1, d1 = d0 mod d1 (u32)
 	ifd	__68020__
 	divul.l	d1,d1:d0
 	else
-	bsr.w	UDivMod32
+	bsr	UDivMod32
 	endif
 	endm
 
@@ -55,7 +55,7 @@ LOG2	macro				;d0 = log2(d0), d0 != 0
 	bfffo	d0{0:32},d0
 	eori.w	#31,d0
 	else
-	bsr.w	Log2
+	bsr	Log2
 	endif
 	endm
 
@@ -1000,7 +1000,7 @@ s_start:
 	lea	IntCode(pc),a0
 	move.l	a0,ChangeInt+IS_Code(a4) ;InterruptServer init
 	lea	FileList(a4),a0
-	bsr.w	InitList
+	bsr	InitList
 
 	lea	UIModule(pc),a2		;&configuration list
 s_uiscan:
@@ -1042,7 +1042,7 @@ s_uioem:
 	move.l	a0,OemPage(a4)
 	bra.s	s_uiscan
 s_uidone:
-	bsr.w	InvertCodePage
+	bsr	InvertCodePage
 
 	lea	DefaultEnvec(pc),a0	;load defaults
 	lea	EnvecBuf(a4),a1
@@ -1102,41 +1102,41 @@ s_1:
 	lsl.l	#2,d0
 	move.l	d0,a0			;&DosEnvec, contains MountList info
 	lea	EnvecBuf(a4),a1
-	bsr.w	CopyDosEnvec
+	bsr	CopyDosEnvec
 s_2:
 	tst.l	EnvecBuf+DE_LowCyl(a4)	;partition not at media start..
 	sne	d0
 	move.b	d0,SearchMode(a4)	;..= "auto mode OFF"
-	bsr.w	OpenAll
+	bsr	OpenAll
 	move.l	d0,DP_Res2(a2)		;error code
 	beq.s	s_openok
 
 	clr.l	DP_Res1(a2)
 	move.l	a2,a0
-	bsr.w	ReplyDosPacket
+	bsr	ReplyDosPacket
 	bra.w	s_exit
 
 s_openok:
 	move.l	DosType(a4),d0
 	move.l	ExecBase(a4),a6
-	bsr.w	RegisterFS		;allow sharing of code
+	bsr	RegisterFS		;allow sharing of code
 	move.l	DeviceNode(a4),a0
 	move.l	pr_MsgPort(a4),DOL_Task(a0)
 	moveq.l	#-1,d0
 	move.l	d0,DP_Res1(a2)
 	move.l	a2,a0
-	bsr.w	ReplyDosPacket		;return StartupMsg
+	bsr	ReplyDosPacket		;return StartupMsg
 	pea	ChangeInt(a4)
-	bsr.w	DiskAddChInt		;enable disk change reports
+	bsr	DiskAddChInt		;enable disk change reports
 	addq.l	#4,sp
-	bsr.w	OpenDisk		;recognize disk
+	bsr	OpenDisk		;recognize disk
 s_wait:
 	move.l	SignalSet(a4),d0
 	CALLEXEC Wait			;wait for order, disk change..
 	tst.w	DiskChanged(a4)		;..or Timeout
 	beq.s	s_getmsg
 
-	bsr.w	IdentifyDisk
+	bsr	IdentifyDisk
 s_getmsg:
 	move.l	S_GLOBALS(a5),a4	;safety
 	move.l	pr_MsgPort(a4),a0
@@ -1150,7 +1150,7 @@ s_getmsg:
 	tst.w	DiskChanged(a4)
 	beq.s	s_domsg
 
-	bsr.w	IdentifyDisk
+	bsr	IdentifyDisk
 s_domsg:
 	clr.l	DP_Res2(a2)		;default status
 	clr.w	ErrorNum(a4)
@@ -1210,10 +1210,10 @@ s_timer:
 	tst.w	NewFlags(a4)
 	beq.s	s_reply
 
-	bsr.w	DoTimer
+	bsr	DoTimer
 s_reply:
 	move.l	a2,a0
-	bsr.w	ReplyDosPacket
+	bsr	ReplyDosPacket
 	clr.l	DosPacket(a4)
 	bra.w	s_getmsg
 
@@ -1234,7 +1234,7 @@ s_3:
 	beq.s	s_4			;no deferred work
 
 	moveq.l	#0,d0
-	bsr.w	UpdateDisk
+	bsr	UpdateDisk
 	bra.w	s_getmsg
 s_4:
 	tst.w	PleaseUnmount(a4)
@@ -1246,8 +1246,8 @@ s_4:
 	tst.w	PhysFlags(a4)
 	beq.s	s_5
 
-	bsr.w	CloseDisk		;unmount
-	bsr.w	DoTimer
+	bsr	CloseDisk		;unmount
+	bsr	DoTimer
 	bra.w	s_wait
 s_5:
 	move.l	TimeRequest(a4),a1
@@ -1255,7 +1255,7 @@ s_5:
 	tst.l	d0
 	beq.w	s_wait			;no idle timeout
 
-	bsr.w	_Forbid			;stop incoming orders
+	bsr	_Forbid			;stop incoming orders
 	moveq.l	#MP_MsgList,d0
 	add.l	pr_MsgPort(a4),d0
 	move.l	d0,a0
@@ -1263,18 +1263,18 @@ s_5:
 	cmp.l	(a0),d0
 	beq.s	s_6
 
-	bsr.w	_Permit			;we are not done...
+	bsr	_Permit			;we are not done...
 	bra.w	s_getmsg
 s_6:
 	move.l	DeviceNode(a4),a0
 	clr.l	DOL_Task(a0)		;unregister MsgPort
-	bsr.w	_Permit
-	bsr.w	DiskRemChInt
-	bsr.w	CloseAll
+	bsr	_Permit
+	bsr	DiskRemChInt
+	bsr	CloseAll
 s_exit:
 	move.l	DosBase(a4),a1
 	CALLEXEC CloseLibrary
-	bsr.w	FreeInvTables		;free charset
+	bsr	FreeInvTables		;free charset
 
 	moveq.l	#(VarsSizeof+15)>>4,d0
 	lsl.l	#4,d0
@@ -1377,7 +1377,7 @@ Action5:
 
 Action7:
 	move.l	DP_Arg1(a2),d0
-	bsr.w	CheckXFH		;if valid..
+	bsr	CheckXFH		;if valid..
 	tst.l	d0
 	beq.s	a7_current
 
@@ -1396,7 +1396,7 @@ a7_ok:
 
 Action8:
 	move.l	DP_Arg1(a2),d0
-	bsr.w	Ok2Read
+	bsr	Ok2Read
 	move.l	d0,d2
 	beq.s	a8_end
 
@@ -1411,14 +1411,14 @@ a8_1:
 	move.l	DP_Arg2(a2),-(sp)
 	move.l	d2,-(sp)
 	move.l	d0,d2
-	bsr.w	LocateObj
+	bsr	LocateObj
 	add.w	#12,sp
 	tst.l	d0
 	beq.s	a8_end
 
 	move.l	d2,-(sp)
 	move.l	d0,-(sp)
-	bsr.w	NewLock
+	bsr	NewLock
 	addq.w	#8,sp
 a8_end:
 	bra.w	s_return
@@ -1427,12 +1427,12 @@ a8_end:
 
 Action9:
 	moveq.l	#0,d0
-	bsr.w	Ok2Write
+	bsr	Ok2Write
 	tst.l	d0
 	beq.w	s_return
 
 	move.l	DP_Arg1(a2),-(sp)
-	bsr.w	RenameDisk
+	bsr	RenameDisk
 	addq.w	#4,sp
 	bra.w	s_return
 
@@ -1446,10 +1446,10 @@ Action15:
 	move.l	d0,a0
 	move.l	FL_Key(a0),d2
 	move.l	a0,-(sp)
-	bsr.w	FreeLock
+	bsr	FreeLock
 	addq.l	#4,sp
 	move.l	d2,a1
-	bsr.w	CloseXLock
+	bsr	CloseXLock
 a15_end:
 	moveq.l	#TRUE,d0
 	bra.w	s_return
@@ -1458,13 +1458,13 @@ a15_end:
 
 Action16:
 	move.l	DP_Arg1(a2),d0
-	bsr.w	Ok2Write
+	bsr	Ok2Write
 	tst.l	d0
 	beq.w	s_return
 
 	move.l	DP_Arg2(a2),-(sp)
 	move.l	d0,-(sp)
-	bsr.w	DeleteObj
+	bsr	DeleteObj
 	addq.l	#8,sp
 	bra.w	s_return
 
@@ -1472,12 +1472,12 @@ Action16:
 
 Action17:
 	move.l	DP_Arg1(a2),d0
-	bsr.w	Ok2Write
+	bsr	Ok2Write
 	move.l	d0,d2
 	beq.w	s_return
 
 	move.l	DP_Arg3(a2),d0
-	bsr.w	Ok2Write
+	bsr	Ok2Write
 	tst.l	d0
 	beq.w	s_return
 
@@ -1485,7 +1485,7 @@ Action17:
 	move.l	d0,-(sp)
 	move.l	DP_Arg2(a2),-(sp)
 	move.l	d2,-(sp)
-	bsr.w	RenameObj
+	bsr	RenameObj
 	add.w	#16,sp
 	bra.w	s_return
 
@@ -1494,9 +1494,9 @@ Action17:
 Action18:
 	move.l	DP_Arg1(a2),d0
 	add.w	d0,NumBuffers(a4)
-	bsr.w	CacheResize
+	bsr	CacheResize
 	move.l	d0,d2
-	bsr.w	ReportGeometry
+	bsr	ReportGeometry
 	move.l	d2,d0
 	bra.w	s_return
 
@@ -1504,14 +1504,14 @@ Action18:
 
 Action21:
 	move.l	DP_Arg2(a2),d0
-	bsr.w	Ok2Write
+	bsr	Ok2Write
 	tst.l	d0
 	beq.w	s_return
 
 	move.l	DP_Arg4(a2),-(sp)
 	move.l	DP_Arg3(a2),-(sp)
 	move.l	d0,-(sp)
-	bsr.w	SetProtect
+	bsr	SetProtect
 	add.w	#12,sp
 	bra.w	s_return
 
@@ -1519,20 +1519,20 @@ Action21:
 
 Action22:
 	move.l	DP_Arg1(a2),d0
-	bsr.w	Ok2Write
+	bsr	Ok2Write
 	tst.l	d0
 	beq.s	a22_end
 
 	move.l	DP_Arg2(a2),-(sp)
 	move.l	d0,-(sp)
-	bsr.w	MakeDir
+	bsr	MakeDir
 	addq.w	#8,sp
 	tst.l	d0
 	beq.s	a22_end
 
 	pea	(SHARED_LOCK).w
 	move.l	d0,-(sp)
-	bsr.w	NewLock
+	bsr	NewLock
 	addq.w	#8,sp
 a22_end:
 	bra.w	s_return
@@ -1541,7 +1541,7 @@ a22_end:
 
 Action23:
 	move.l	DP_Arg1(a2),d0
-	bsr.w	Ok2Read
+	bsr	Ok2Read
 	tst.l	d0
 	beq.w	s_return
 
@@ -1549,7 +1549,7 @@ Action23:
 	lsl.l	#2,d1
 	move.l	d1,-(sp)		;&FileInfoBlock
 	move.l	d0,-(sp)		;&XLock
-	bsr.w	ExamineKey
+	bsr	ExamineKey
 	addq.w	#8,sp
 	bra.w	s_return
 
@@ -1557,7 +1557,7 @@ Action23:
 
 Action24:
 	move.l	DP_Arg1(a2),d0
-	bsr.w	Ok2Read
+	bsr	Ok2Read
 	tst.l	d0
 	beq.w	s_return
 
@@ -1565,7 +1565,7 @@ Action24:
 	lsl.l	#2,d1
 	move.l	d1,-(sp)		;&FileInfoBlock
 	move.l	d0,-(sp)		;&XLock
-	bsr.w	ExamineNext
+	bsr	ExamineNext
 	addq.w	#8,sp
 	bra.w	s_return
 
@@ -1575,7 +1575,7 @@ Action25:
 	move.l	DP_Arg1(a2),d0
 	lsl.l	#2,d0
 	move.l	d0,-(sp)
-	bsr.w	GiveDiskInfo
+	bsr	GiveDiskInfo
 	addq.l	#4,sp
 	bra.w	s_return
 
@@ -1583,14 +1583,14 @@ Action25:
 
 Action26:
 	move.l	DP_Arg1(a2),d0
-	bsr.w	Ok2Read
+	bsr	Ok2Read
 	tst.l	d0
 	beq.w	s_return
 
 	move.l	DP_Arg2(a2),d0
 	lsl.l	#2,d0
 	move.l	d0,-(sp)
-	bsr.w	GiveDiskInfo
+	bsr	GiveDiskInfo
 	addq.w	#4,sp
 	bra.w	s_return
 
@@ -1598,21 +1598,21 @@ Action26:
 
 Action27:
 	moveq.l	#TRUE,d0		;"write immediately"
-	bsr.w	UpdateDisk
+	bsr	UpdateDisk
 	bra.w	s_return
 
 ;--- ACTION_SET_COMMENT ------------------------------------
 
 Action28:
 	move.l	DP_Arg2(a2),d0
-	bsr.w	Ok2Write
+	bsr	Ok2Write
 	tst.l	d0
 	beq.s	a28_end
 
 	move.l	DP_Arg4(a2),-(sp)
 	move.l	DP_Arg3(a2),-(sp)
 	move.l	d0,-(sp)
-	bsr.w	SetComment
+	bsr	SetComment
 	add.w	#12,sp
 a28_end:
 	bra.w	s_return
@@ -1628,13 +1628,13 @@ Action29:
 	move.l	FL_Key(a0),d0
 a29_1:
 	move.l	d0,a0
-	bsr.w	xParent
+	bsr	xParent
 	tst.l	d0
 	beq.s	a29_end
 
 	pea	(SHARED_LOCK).w
 	move.l	d0,-(sp)
-	bsr.w	NewLock
+	bsr	NewLock
 	addq.w	#8,sp
 a29_end:
 	bra.w	s_return
@@ -1646,7 +1646,7 @@ Action31:
 	beq.s	a31_unlock
 
 	addq.w	#1,InhibitNest(a4)
-	bsr.w	CloseDisk
+	bsr	CloseDisk
 	move.l	#ID_BUSY,DiskType(a4)
 	bra.s	a33_end
 
@@ -1658,7 +1658,7 @@ a31_unlock:				;DOS V36+ uses this..
 ;--- ACTION_DISK_CHANGE ------------------------------------
 
 Action33:
-	bsr.w	IdentifyDisk
+	bsr	IdentifyDisk
 a33_reset:
 	clr.w	InhibitNest(a4)
 a33_end:
@@ -1669,14 +1669,14 @@ a33_end:
 
 Action34:
 	move.l	DP_Arg2(a2),d0
-	bsr.w	Ok2Write
+	bsr	Ok2Write
 	tst.l	d0
 	beq.w	s_return
 
 	move.l	DP_Arg4(a2),-(sp)
 	move.l	DP_Arg3(a2),-(sp)
 	move.l	d0,-(sp)
-	bsr.w	SetFileDate
+	bsr	SetFileDate
 	add.w	#12,sp
 	bra.w	s_return
 
@@ -1686,7 +1686,7 @@ Action82:
 	move.l	DP_Arg3(a2),-(sp)	;length
 	move.l	DP_Arg2(a2),-(sp)	;&data
 	move.l	DP_Arg1(a2),-(sp)	;FH_Arg1 = &FileHandleExtension
-	bsr.w	ReadFromFile
+	bsr	ReadFromFile
 	add.w	#12,sp
 	bra.w	s_return
 
@@ -1696,7 +1696,7 @@ Action87:
 	move.l	DP_Arg3(a2),-(sp)	;length
 	move.l	DP_Arg2(a2),-(sp)	;&data
 	move.l	DP_Arg1(a2),-(sp)	;FH_Arg1 = &FileHandleExtension
-	bsr.w	WriteToFile
+	bsr	WriteToFile
 	add.w	#12,sp
 	bra.w	s_return
 
@@ -1704,7 +1704,7 @@ Action87:
 
 Action1006:
 	move.l	DP_Arg2(a2),d0
-	bsr.w	Ok2Write
+	bsr	Ok2Write
 	tst.l	d0
 	beq.w	s_return
 
@@ -1713,14 +1713,14 @@ Action1006:
 Action1005:
 Action1004:
 	move.l	DP_Arg2(a2),d0
-	bsr.w	Ok2Read
+	bsr	Ok2Read
 	tst.l	d0
 	beq.s	a1004_end
 
 	move.l	DP_Type(a2),-(sp)
 	move.l	DP_Arg3(a2),-(sp)
 	move.l	d0,-(sp)
-	bsr.w	OpenFile
+	bsr	OpenFile
 	add.w	#12,sp
 	tst.l	d0			;&FileHandleExtension
 	beq.s	a1004_end
@@ -1738,7 +1738,7 @@ a1004_end:
 
 Action1007:
 	move.l	DP_Arg1(a2),-(sp)	;copy of FH_Arg1
-	bsr.w	CloseFile
+	bsr	CloseFile
 	addq.l	#4,sp
 	bra.w	s_return
 
@@ -1748,7 +1748,7 @@ Action1008:
 	move.l	DP_Arg3(a2),-(sp)	;mode
 	move.l	DP_Arg2(a2),-(sp)	;position
 	move.l	DP_Arg1(a2),-(sp)	;FH_Arg1 = &FileHandleExtension
-	bsr.w	SeekFilePos
+	bsr	SeekFilePos
 	add.w	#12,sp
 	bra.w	s_return
 
@@ -1757,7 +1757,7 @@ Action1008:
 Action1020:
 	move.l	DP_Arg2(a2),-(sp)
 	move.l	DP_Arg1(a2),-(sp)
-	bsr.w	FormatDisk
+	bsr	FormatDisk
 	addq.w	#8,sp
 	bra.w	s_return
 
@@ -1767,7 +1767,7 @@ Action1022:
 	move.l	DP_Arg3(a2),-(sp)
 	move.l	DP_Arg2(a2),-(sp)
 	move.l	DP_Arg1(a2),-(sp)
-	bsr.w	SetFileSize
+	bsr	SetFileSize
 	add.w	#12,sp
 	bra.w	s_return
 
@@ -1830,7 +1830,7 @@ Action1026:
 	move.l	DP_Type(a2),-(sp)	;.."use original"
 	clr.l	-(sp)
 	move.l	d0,-(sp)
-	bsr.w	OpenFile
+	bsr	OpenFile
 	add.w	#12,sp
 	tst.l	d0			;&FileHandleExtension
 	beq.s	a1026_end		;on success..
@@ -1840,7 +1840,7 @@ Action1026:
 	move.l	d1,a0			;&FileHandle
 	move.l	d0,FH_Arg1(a0)
 	move.l	d2,-(sp)
-	bsr.w	FreeLock		;..free FileLock
+	bsr	FreeLock		;..free FileLock
 	addq.w	#4,sp
 	moveq.l	#TRUE,d0
 a1026_end:
@@ -1858,7 +1858,7 @@ Action1028:
 	move.l	DP_Arg3(a2),-(sp)	;new mode
 	move.l	DP_Arg2(a2),-(sp)	;(BPTR) object
 	move.l	DP_Arg1(a2),-(sp)	;type
-	bsr.w	ChangeMode
+	bsr	ChangeMode
 	add.w	#12,sp
 	bra.w	s_return
 
@@ -1888,13 +1888,13 @@ Action1031:
 	move.l	XL_Parent(a0),d0
 a1031_open:
 	move.l	d0,a0
-	bsr.w	OpenXLock
+	bsr	OpenXLock
 	tst.l	d0
 	beq.s	a1031_end		;locked exclusively
 
 	pea	(SHARED_LOCK).w
 	move.l	d0,-(sp)
-	bsr.w	NewLock
+	bsr	NewLock
 	addq.w	#8,sp
 a1031_end:
 	bra.w	s_return
@@ -1903,7 +1903,7 @@ a1031_end:
 
 Action1033:
 	move.l	DP_Arg1(a2),d0
-	bsr.w	Ok2Read
+	bsr	Ok2Read
 	tst.l	d0
 	beq.w	s_return
 
@@ -1913,7 +1913,7 @@ Action1033:
 	move.l	-(a0),-(sp)
 	move.l	-(a0),-(sp)
 	move.l	d0,-(sp)
-	bsr.w	ExamineAll
+	bsr	ExamineAll
 	add.w	#20,sp
 	bra.w	s_return
 
@@ -1928,7 +1928,7 @@ Action1034:
 	lsl.l	#2,d0
 	move.l	d0,-(sp)		;&FileInfoBlock
 	move.l	XFH_XLock(a0),-(sp)
-	bsr.w	ExamineKey
+	bsr	ExamineKey
 	addq.l	#8,sp
 a1034_end:
 	bra.w	s_return
@@ -1942,7 +1942,7 @@ Action1035:
 ;--- ACTION_SERIALIZE_DISK ---------------------------------
 
 Action4200:
-	bsr.w	SerializeDisk
+	bsr	SerializeDisk
 	bra.w	s_return
 
 ;--- ACTION_GET_DISK_FSSM ----------------------------------
@@ -1983,7 +1983,7 @@ IntCode:
 NewLock:
 	move.l	a2,-(sp)
 	moveq.l	#FL_Sizeof,d0
-	bsr.w	AllocSegment
+	bsr	AllocSegment
 	move.l	d0,a2			;&FileLock..
 	tst.l	d0
 	beq.s	nl_error		;no memory
@@ -1996,13 +1996,13 @@ NewLock:
 	move.l	d0,12(sp)
 	lsr.l	#2,d0
 	move.l	d0,FL_Volume(a2)	;..init and..
-	bsr.w	_Forbid
+	bsr	_Forbid
 	move.l	12(sp),a0
 	move.l	DOL_LockList(a0),FL_Link(a2)
 	move.l	a2,d0
 	lsr.l	#2,d0
 	move.l	d0,DOL_LockList(a0)	;..put into Locklist of VolumeNode
-	bsr.w	_Permit
+	bsr	_Permit
 	addq.l	#1,NumLocks(a4)		;1 more lock
 nl_end:
 	move.l	a2,d0
@@ -2012,7 +2012,7 @@ nl_end:
 
 nl_error:
 	move.l	8(sp),a1
-	bsr.w	CloseXLock		;free object on error
+	bsr	CloseXLock		;free object on error
 	move.w	#103,ErrorNum(a4)
 	bra.s	nl_end
 
@@ -2028,7 +2028,7 @@ FreeLock:
 	lsl.l	#2,d0
 	move.l	d0,a2			;&VolumeNode
 	add.w	#DOL_LockList,a2
-	bsr.w	_Forbid
+	bsr	_Forbid
 frl_loop:
 	move.l	a2,a3
 	move.l	(a2),d0
@@ -2041,12 +2041,12 @@ frl_loop:
 
 	move.l	(a2),(a3)		;remove FileLock from LockList
 frl_last:
-	bsr.w	_Permit
+	bsr	_Permit
 	move.l	a2,d0
 	beq.s	frl_end
 
 	move.l	a2,a1
-	bsr.w	FreeSegment		;free lock
+	bsr	FreeSegment		;free lock
 	subq.l	#1,NumLocks(a4)		;1 less lock
 	moveq.l	#-1,d0
 frl_end:
@@ -2169,13 +2169,13 @@ MountNewVolume:
 	move.l	d0,-4(a5)		;&DosInfo
 
 	moveq.l	#XDOL_Sizeof,d0
-	bsr.w	AllocSegment
+	bsr	AllocSegment
 	move.l	d0,a2			;&VolumeNode
 	tst.l	d0
 	beq.s	mnv_error		;no memory
 
 	lea	XDOL_XLockList(a2),a0	;&XLock List
-	bsr.w	InitList
+	bsr	InitList
 
 	lea	XDOL_Name(a2),a1	;&Name
 	move.l	a1,d0
@@ -2202,13 +2202,13 @@ mnv_loop:
 	move.l	(a1)+,(a0)+
 	move.l	(a1)+,(a0)+
 
-	bsr.w	_Forbid
+	bsr	_Forbid
 	move.l	-4(a5),a0
 	move.l	4(a0),(a2)		;append old list
 	move.l	a2,d0
 	lsr.l	#2,d0
 	move.l	d0,4(a0)		;add to list head
-	bsr.w	_Permit
+	bsr	_Permit
 mnv_end:
 	move.l	a2,d0
 	move.l	(sp)+,a2
@@ -2234,10 +2234,10 @@ TouchVolumeNode:
 	add.w	#XL_MSDE,a2		;&MSDirEntry of root dir
 	move.l	a2,a0
 	lea	XDOL_Name(a3),a1	;&Name
-	bsr.w	GetBName		;Name,..
+	bsr	GetBName		;Name,..
 	move.l	MSDE_CTime(a2),d0
 	lea	DOL_VolumeDate(a3),a1
-	bsr.w	Date2Dos		;..date and time
+	bsr	Date2Dos		;..date and time
 tvn_end:
 	movem.l	(sp)+,a2-a3
 	rts
@@ -2261,7 +2261,7 @@ UnMountVolume:
 	lsl.l	#2,d0
 	move.l	d0,a1			;&DosInfo
 	addq.l	#4,a1
-	bsr.w	_Forbid
+	bsr	_Forbid
 umv_loop:
 	move.l	a1,a0
 	move.l	(a1),d0
@@ -2274,9 +2274,9 @@ umv_loop:
 
 	move.l	(a1),(a0)		;unlink Node
 umv_last:
-	bsr.w	_Permit
+	bsr	_Permit
 	move.l	a2,a1
-	bsr.w	FreeSegment		;free Node
+	bsr	FreeSegment		;free Node
 	cmp.l	VolumeNode(a4),a2
 	bne.s	umv_ok
 
@@ -2308,20 +2308,20 @@ CloseDisk:
 	beq.s	cd_free			;perform deferred actions..
 
 	moveq.l	#TRUE,d0
-	bsr.w	UpdateDisk		;..now
+	bsr	UpdateDisk		;..now
 cd_free:
 	clr.l	BackgroundJob(a4)	;abort background activity
-	bsr.w	TouchVolumeNode
-	bsr.w	FreeFATBuf		;free all block buffers
-	bsr.w	CacheFree
+	bsr	TouchVolumeNode
+	bsr	FreeFATBuf		;free all block buffers
+	bsr	CacheFree
 	move.l	RootXLock(a4),a1
-	bsr.w	CloseXLock		;free root dir..
+	bsr	CloseXLock		;free root dir..
 	clr.l	RootXLock(a4)
 	tst.l	VolumeNode(a4)
 	bne.s	cd_sleep
 cd_report:
 	clr.w	PhysFlags(a4)
-	bsr.w	ChangeReport
+	bsr	ChangeReport
 cd_ok:
 	moveq.l	#-1,d0			;..and all other dirs, or..
 cd_end:
@@ -2332,7 +2332,7 @@ cd_end:
 cd_sleep:
 	clr.l	VolumeNode(a4)		;..if still open XLock`s..
 	clr.w	PhysFlags(a4)
-	bsr.w	ChangeReport
+	bsr	ChangeReport
 	moveq.l	#0,d0			;..stay in DOS List
 	bra.s	cd_end
 
@@ -2345,13 +2345,13 @@ IdentifyDisk:
 	beq.s	idd_doit		;..everything was already done
 
 	pea	(TDERR_DISKCHANGED).w
-	bsr.w	DoRequest		;otherwise show warning..
+	bsr	DoRequest		;otherwise show warning..
 	addq.l	#4,sp
 	tst.w	d0
 	bne.s	idd_end			;..and go on with old disk
 idd_doit:
-	bsr.w	CloseDisk
-	bsr.s	OpenDisk
+	bsr	CloseDisk
+	bsr	OpenDisk
 idd_end:
 	rts
 
@@ -2375,14 +2375,14 @@ OpenDisk:
 
 ;- - get disk name - - - - - - - - - - - - - - - - - - - - -
 
-	bsr.w	GetDiskParams
+	bsr	GetDiskParams
 	move.w	d0,PhysFlags(a4)
 	beq.w	od_end			;no disk
 
 	btst	#3,d0
 	beq.w	od_report		;invalid disk
 
-	bsr.w	ReadFAT			;get FAT
+	bsr	ReadFAT			;get FAT
 	tst.l	d0
 	bne.s	od_label
 
@@ -2391,14 +2391,14 @@ OpenDisk:
 	bra.w	od_report
 od_label:
 	move.l	RootCluster(a4),d0
-	bsr.w	Cluster2Block
+	bsr	Cluster2Block
 	move.l	d0,OD_KEY(a5)
 	clr.w	OD_KEY+4(a5)
 	lea	OD_MSDEBUF(a5),a2	;optimize
 od_eloop:
 	move.l	a2,-(sp)
 	pea	OD_KEY(a5)
-	bsr.w	ReadXMSDE
+	bsr	ReadXMSDE
 	addq.w	#8,sp
 	tst.w	d0
 	beq.s	od_standard		;root dir ends here,..
@@ -2420,20 +2420,20 @@ od_standard:
 	btst	#1,PhysFlags+1(a4)
 	beq.s	od_stdok		;..when writable..
 
-	bsr.w	TouchBootBlock		;..fix it now
+	bsr	TouchBootBlock		;..fix it now
 od_stdok:
 	move.l	a2,-(sp)
-	bsr.w	GetDefVolName		;..generic standard name
+	bsr	GetDefVolName		;..generic standard name
 	addq.l	#4,sp
 
 od_found:
 	move.l	a2,a0
 	lea	OD_NAMEBUF(a5),a1
-	bsr.w	GetBName		;Name,..
+	bsr	GetBName		;Name,..
 	move.l	MSDE_Time(a2),d0
 	move.l	d0,MSDE_CTime(a2)
 	lea	OD_DOSDATE(a5),a1
-	bsr.w	Date2Dos		;..date and time
+	bsr	Date2Dos		;..date and time
 
 ;- - register disk with DOS  - - - - - - - - - - - - - - - -
 
@@ -2443,7 +2443,7 @@ od_found:
 	lsl.l	#2,d0
 	move.l	d0,a2			;&DosInfo
 	addq.l	#4,a2
-	bsr.w	_Forbid
+	bsr	_Forbid
 od_loop:
 	move.l	(a2),d0
 	lsl.l	#2,d0
@@ -2482,13 +2482,13 @@ od_dloop:
 
 	clr.l	DOL_Unused(a2)
 od_last:
-	bsr.w	_Permit
+	bsr	_Permit
 	move.l	a2,d0
 	bne.s	od_ready
 
 	pea	OD_DOSDATE(a5)		;&date
 	pea	OD_NAMEBUF(a5)		;&Name
-	bsr.w	MountNewVolume		;new VolumeNode
+	bsr	MountNewVolume		;new VolumeNode
 	addq.l	#8,sp
 	move.l	d0,a2
 od_ready:
@@ -2498,18 +2498,18 @@ od_ready:
 	move.l	pr_MsgPort(a4),DOL_Task(a2)	;connect File system
 	lea	XDOL_Name+1(a2),a0
 	lea	LastVolName(a4),a1
-	bsr.w	StrCopy			;for DoRequest()
+	bsr	StrCopy			;for DoRequest()
 
 ;- - start XLock`s - - - - - - - - - - - - - - - - - - - - -
 
 	pea	(SHARED_LOCK).w
 	pea	OD_MSDEBUF(a5)
 	clr.l	-(sp)
-	bsr.w	xLock
+	bsr	xLock
 	add.w	#12,sp
 	move.l	d0,RootXLock(a4)
 od_report:
-	bsr.w	ChangeReport		;report success
+	bsr	ChangeReport		;report success
 od_end:
 	clr.b	NoRequest(a4)		;reenable read/write error reqs
 	move.l	a2,d0
@@ -2630,7 +2630,7 @@ b2d_loop:
 	bmi.s	b2d_char
 
 	move.b	(a1)+,d0		;char..
-	bsr.s	Char2MS			;..convert and..
+	bsr	Char2MS			;..convert and..
 b2d_char:
 	move.b	d0,(a2)+		;..write
 	dbf	d2,b2d_loop
@@ -2900,7 +2900,7 @@ UniqueStdName:
 ;- - check already used standard names - - - - - - - - - - -
 
 	move.l	12(a5),a0
-	bsr.s	usn_bump
+	bsr	usn_bump
 usn_rescan:
 	clr.l	-4(a5)
 	move.l	8(a5),d2
@@ -2909,7 +2909,7 @@ usn_block:
 	move.l	d2,d0
 	beq.s	usn_done		;thats it!!
 
-	bsr.w	ReadDirBlock
+	bsr	ReadDirBlock
 	tst.l	d0
 	beq.s	usn_end			;read error
 
@@ -2944,10 +2944,10 @@ usn_entry:
 
 	move.w	#-1,-4(a5)
 	move.l	12(a5),a0
-	bsr.s	usn_bump		;..bump version
+	bsr	usn_bump		;..bump version
 usn_next:
 	add.w	#MSDE_Sizeof,a2
-	bsr.w	NextMSDE
+	bsr	NextMSDE
 	tst.w	d3
 	bne.s	usn_entry
 	bra.s	usn_block
@@ -3124,7 +3124,7 @@ ShutdownDevice:
 	CALLEXEC CloseDevice
 sdd_free:
 	move.l	(a2),a1
-	bsr.w	FreeMsg
+	bsr	FreeMsg
 	clr.l	(a2)
 sdd_end:
 	move.l	(sp)+,a2
@@ -3134,14 +3134,14 @@ sdd_end:
 
 CloseAll:
 	lea	InputRequest(a4),a1
-	bsr.s	ShutdownDevice
+	bsr	ShutdownDevice
 	lea	TimeRequest(a4),a1
-	bsr.s	ShutdownDevice
+	bsr	ShutdownDevice
 	lea	DiskRequest(a4),a1
-	bsr.s	ShutdownDevice
+	bsr	ShutdownDevice
 
 	move.l	ReplyPort(a4),a1
-	bsr.w	FreeMsgPort
+	bsr	FreeMsgPort
 	clr.l	ReplyPort(a4)
 
 	move.l	IntBase(a4),d0
@@ -3169,8 +3169,8 @@ OpenAll:
 	tst.l	DosBase(a4)
 	beq.w	oa_err
 
-	bsr.w	CacheInit
-	bsr.w	AllocMsgPort
+	bsr	CacheInit
+	bsr	AllocMsgPort
 	move.l	d0,ReplyPort(a4)	;for *.device replies
 	beq.w	oa_err
 
@@ -3187,7 +3187,7 @@ OpenAll:
 ;- - disk device - - - - - - - - - - - - - - - - - - - - - -
 
 	moveq.l	#IO_Sizeof,d0
-	bsr.w	AllocMsg
+	bsr	AllocMsg
 	move.l	d0,DiskRequest(a4)
 	beq.w	oa_err
 
@@ -3213,7 +3213,7 @@ OpenAll:
 
 	addq.l	#1,d0
 	move.l	d0,a0
-	bsr.w	SetOptions
+	bsr	SetOptions
 oa_1:
 	move.l	DiskRequest(a4),a1
 	move.w	#NSCMD_DEVICEQUERY,IO_Command(a1)
@@ -3221,7 +3221,7 @@ oa_1:
 	move.l	a0,IO_Data(a1)
 	moveq.l	#QR_Sizeof,d0
 	move.l	d0,IO_Length(a1)
-	bsr.w	SafeDoIO
+	bsr	SafeDoIO
 	tst.b	d0
 	bne.s	oa_cend			;no NSD
 
@@ -3271,7 +3271,7 @@ oa_cend:
 	moveq.l	#103,d4			;"no mem"
 	moveq.l	#TR_Sizeof,d0
 	move.l	ReplyPort(a4),a0
-	bsr.w	AllocMsg
+	bsr	AllocMsg
 	move.l	d0,TimeRequest(a4)
 	beq.w	oa_err
 
@@ -3296,7 +3296,7 @@ oa_cend:
 
 	moveq.l	#IO_SimpleSizeof,d0
 	move.l	ReplyPort(a4),a0
-	bsr.w	AllocMsg
+	bsr	AllocMsg
 	move.l	d0,InputRequest(a4)
 	beq.s	oa_err
 
@@ -3326,7 +3326,7 @@ oa_end:
 	rts
 
 oa_err:
-	bsr.w	CloseAll		;partial failure
+	bsr	CloseAll		;partial failure
 	bra.s	oa_end
 
 TimerName:
@@ -3415,7 +3415,7 @@ rfs_new:
 	jsr	Forbid(a6)
 	lea	FSR_List(a2),a0
 	move.l	a3,a1
-	bsr.w	MyAddHead
+	bsr	MyAddHead
 	jsr	Permit(a6)
 	bra.s	rfs_name
 
@@ -3566,17 +3566,17 @@ RenameDisk:
 	beq.s	rd_check		;if present..
 
 	clr.b	XL_MSDE+MSDE_Flags(a0)
-	bsr.w	DeleteXLock		;..delete old disk name
+	bsr	DeleteXLock		;..delete old disk name
 	move.l	RootXLock(a4),a0
 	clr.l	XL_Key(a0)
 rd_check:
 	move.l	8(a5),a0
 	lea	RD_NAME(a5),a1
-	bsr.w	BStr2DiskName
+	bsr	BStr2DiskName
 	tst.l	d0
 	bne.s	rd_set			;new name valid
 rd_ok:
-	bsr.w	TouchBootBlock
+	bsr	TouchBootBlock
 	move.l	RootXLock(a4),a0
 	move.l	SerialNum(a4),d0
 	swap	d0
@@ -3585,7 +3585,7 @@ rd_ok:
 	bne.s	rd_1
 
 	pea	XL_MSDE(a0)
-	bsr.w	GetDefVolName
+	bsr	GetDefVolName
 	addq.l	#4,sp
 	bra.s	rd_2
 rd_1:
@@ -3596,7 +3596,7 @@ rd_1:
 	clr.l	MSDE_CTime(a0)
 	clr.l	-(sp)
 	move.l	a0,-(sp)
-	bsr.w	WriteXMSDE
+	bsr	WriteXMSDE
 	addq.l	#8,sp
 	move.l	RootXLock(a4),a0
 	add.w	#XL_MSDE,a0		;&MSDirEntry
@@ -3604,7 +3604,7 @@ rd_1:
 	move.l	d0,MSDE_CTime(a0)
 	move.l	d2,MSDE_Time(a0)	;..and restore
 rd_2:
-	bsr.w	TouchVolumeNode
+	bsr	TouchVolumeNode
 	moveq.l	#TRUE,d0
 rd_end:
 	movem.l	(sp)+,d2-d3/a2
@@ -3618,30 +3618,30 @@ rd_error:
 rd_set:
 	lea	RD_MSDEBUF(a5),a2	;optimize
 	pea	RD_TO(a5)
-	bsr.s	PackRootDir		;densify root dir
+	bsr	PackRootDir		;densify root dir
 	move.l	RootCluster(a4),d0
-	bsr.w	Cluster2Block
+	bsr	Cluster2Block
 	move.l	d0,RD_FROM(a5)
 	clr.w	RD_FROM+4(a5)
 	move.l	a2,-(sp)
 	pea	RD_FROM(a5)
-	bsr.w	ReadXMSDE		;read first entry and..
+	bsr	ReadXMSDE		;read first entry and..
 	move.l	a2,-(sp)
 	pea	RD_TO(a5)
 	move.l	RootXLock(a4),-(sp)
-	bsr.w	CheckDirSpace		;..if there is room,..
+	bsr	CheckDirSpace		;..if there is room,..
 	add.w	#24,sp
 	tst.l	RD_TO(a5)
 	beq.s	rd_error
 
 	pea	RD_TO(a5)
 	move.l	a2,-(sp)
-	bsr.w	MoveXMSDE		;..move it to end
+	bsr	MoveXMSDE		;..move it to end
 	addq.l	#8,sp
 
 	move.l	RootXLock(a4),a2
 	move.l	RootCluster(a4),d0
-	bsr.w	Cluster2Block
+	bsr	Cluster2Block
 	move.l	d0,XL_Key(a2)
 	clr.w	XL_Offset(a2)		;new first entry = disk name
 	lea	RD_NAME(a5),a0
@@ -3661,7 +3661,7 @@ PackRootDir:
 	link.w	a5,#PRD_FROM
 	move.l	a2,-(sp)
 	move.l	RootCluster(a4),d0
-	bsr.s	Cluster2Block
+	bsr	Cluster2Block
 	move.l	d0,PRD_FROM(a5)
 	clr.w	PRD_FROM+4(a5)		;source..
 	move.l	8(a5),a0
@@ -3674,7 +3674,7 @@ prd_loop:
 
 	move.l	a2,-(sp)
 	pea	PRD_FROM(a5)
-	bsr.w	ReadXMSDE
+	bsr	ReadXMSDE
 	addq.w	#8,sp
 	tst.w	d0
 	beq.s	prd_error		;read error
@@ -3687,7 +3687,7 @@ prd_loop:
 
 	move.l	8(a5),-(sp)
 	move.l	a2,-(sp)
-	bsr.w	MoveXMSDE
+	bsr	MoveXMSDE
 	addq.l	#8,sp
 	bra.s	prd_loop
 prd_end:
@@ -3841,11 +3841,11 @@ nbl_fat:
 	lsr.l	d2,d1
 	addq.l	#2,d1			;old cluster #
 	move.l	d1,d0
-	bsr.w	NextCluster
+	bsr	NextCluster
 	tst.l	d0
 	bmi.s	nbl_stop		;end of chain
 
-	bsr.s	Cluster2Block
+	bsr	Cluster2Block
 nbl_end:
 	move.l	(sp)+,d2
 	rts
@@ -3861,16 +3861,16 @@ TouchBootBlock:
 	link.w	a5,#-DS_Sizeof
 	move.l	a2,-(sp)
 	moveq.l	#0,d0
-	bsr.w	ReadSingle
+	bsr	ReadSingle
 	tst.l	d0
 	beq.s	tbb_end
 
 	move.l	d0,a2			;&block contents
-	bsr.w	BlockChanged
+	bsr	BlockChanged
 	pea	-DS_Sizeof(a5)
-	bsr.w	_DateStamp
+	bsr	_DateStamp
 	pea	-DS_Sizeof(a5)
-	bsr.w	Date2MS
+	bsr	Date2MS
 	addq.l	#8,sp
 	move.l	d0,SerialNum(a4)	;MS_date << 16 + MS_time..
 	lea	38(a2),a1
@@ -3916,7 +3916,7 @@ CheckInhibited:
 	tst.w	InhibitNest(a4)
 	beq.s	chi_error		;too dangerous!!
 
-	bsr.w	GetDiskParams		;set params
+	bsr	GetDiskParams		;set params
 	move.w	#226,d1
 	roxr.w	#1,d0
 	bcc.s	chi_error		;no disk
@@ -3951,22 +3951,22 @@ FormatDisk:
 
 ;- - prerequisites - - - - - - - - - - - - - - - - - - - - -
 
-	bsr.s	CheckInhibited
+	bsr	CheckInhibited
 	move.l	d0,d2
 	beq.w	fmd_end
 
 ;- - name & date - - - - - - - - - - - - - - - - - - - - - -
 
 	pea	-12(a5)
-	bsr.w	_DateStamp
+	bsr	_DateStamp
 	pea	-12(a5)
-	bsr.w	Date2MS
+	bsr	Date2MS
 	addq.l	#8,sp
 	move.l	d0,SerialNum(a4)	;MS_date << 16 + MS_time
 
 	move.l	8(a5),a0
 	lea	-12(a5),a1
-	bsr.w	BStr2DiskName		;MSDE_Name[11] + MSDE_Flags
+	bsr	BStr2DiskName		;MSDE_Name[11] + MSDE_Flags
 
 ;- - Bootblock  - - - - - - - - - - - - - - - - - - - - - -
 
@@ -4090,13 +4090,13 @@ fmd_u4:
 fmd_u5:
 	moveq.l	#0,d0
 	move.l	a2,a0
-	bsr.w	_WBlock
+	bsr	_WBlock
 	tst.w	d4
 	bpl.w	fmd_fstart		;FAT32 only
 
 	moveq.l	#6,d0
 	move.l	a2,a0
-	bsr.w	_WBlock			;FAT32: Boot block duplicate
+	bsr	_WBlock			;FAT32: Boot block duplicate
 
 ;- - Boot routine continuation - - - - - - - - - - - - - - -
 
@@ -4116,14 +4116,14 @@ fmd_xbfill:
 
 	moveq.l	#2,d0
 	move.l	a2,a0
-	bsr.w	_WBlock			;ExtBootBlock and..
+	bsr	_WBlock			;ExtBootBlock and..
 	moveq.l	#8,d0
 	move.l	a2,a0
-	bsr.w	_WBlock			;..dupl
+	bsr	_WBlock			;..dupl
 
 ;- - FileSysInfoBlock - - - - - - - - - - - - - - - - - - -
 
-	bsr.w	fmd_clrbuf
+	bsr	fmd_clrbuf
 	move.l	#"RRaA",(a2)
 	lea	484(a2),a0
 	move.l	#"rrAa",(a0)+
@@ -4133,7 +4133,7 @@ fmd_xbfill:
 	move.w	#$55aa,510(a2)
 	moveq.l	#7,d0
 	move.l	a2,a0
-	bsr.w	_WBlock			;dupl
+	bsr	_WBlock			;dupl
 	moveq.l	#0,d0
 	move.b	BlocksPerCluster(a4),d0
 	LOG2
@@ -4145,17 +4145,17 @@ fmd_xbfill:
 	move.l	d1,488(a2)
 	moveq.l	#1,d0
 	move.l	a2,a0
-	bsr.w	_WBlock			;the Info-Block itself
+	bsr	_WBlock			;the Info-Block itself
 
 ;- - unused head blocks  - - - - - - - - - - - - - - - - - -
 
-	bsr.w	fmd_clrbuf
+	bsr	fmd_clrbuf
 	moveq.l	#3,d2
 	moveq.l	#3-1,d3
 fmd_clr1:
 	move.l	d2,d0
 	move.l	a2,a0
-	bsr.w	_WBlock			;blocks #3..5
+	bsr	_WBlock			;blocks #3..5
 	addq.l	#1,d2
 	dbf	d3,fmd_clr1
 
@@ -4165,7 +4165,7 @@ fmd_clr1:
 fmd_clr2:
 	move.l	d2,d0
 	move.l	a2,a0
-	bsr.w	_WBlock			;blocks #9..(usually) 31
+	bsr	_WBlock			;blocks #9..(usually) 31
 	addq.l	#1,d2
 	subq.w	#1,d3
 	bgt.s	fmd_clr2
@@ -4173,7 +4173,7 @@ fmd_clr2:
 ;- - FAT  - - - - - - - - - - - - - - - - - - - - - - - - -
 
 fmd_fstart:
-	bsr.w	fmd_clrbuf
+	bsr	fmd_clrbuf
 	tst.w	FATType(a4)
 	beq.s	fmd_f12
 	bgt.s	fmd_f16
@@ -4201,7 +4201,7 @@ fmd_fblock:
 	move.l	a2,a0
 fmd_fwrite:
 	move.l	d2,d0
-	bsr.w	_WBlock
+	bsr	_WBlock
 	addq.l	#1,d2
 	subq.l	#1,d3
 	bgt.s	fmd_fblock
@@ -4233,7 +4233,7 @@ fmd_rblock:
 	move.l	a2,a0
 fmd_rwrite:
 	move.l	d2,d0
-	bsr.w	_WBlock
+	bsr	_WBlock
 	addq.l	#1,d2
 	subq.l	#1,d3
 	bgt.s	fmd_rblock
@@ -4247,11 +4247,11 @@ fmd_rwrite:
 fmd_ok:
 	moveq.l	#TRUE,d2
 fmd_close:
-	bsr.w	CacheFlush		;write buffers
-	bsr.w	DiskUpdate
+	bsr	CacheFlush		;write buffers
+	bsr	DiskUpdate
 	and.w	#$fff1,NewFlags(a4)	;just motor still running
 fmd_end:
-	bsr.w	CacheFree
+	bsr	CacheFree
 	move.l	d2,d0
 	movem.l	(sp)+,d2-d4/a2
 	unlk	a5
@@ -4284,7 +4284,7 @@ SDI_MSDEBUF	= -8-XMSDE_Sizeof
 SerializeDisk:
 	link.w	a5,#SDI_MSDEBUF
 	movem.l	d2/a2,-(sp)
-	bsr.w	CheckInhibited
+	bsr	CheckInhibited
 	move.l	d0,d2
 	beq.s	sdi_end
 
@@ -4293,16 +4293,16 @@ SerializeDisk:
 	cmp.l	DiskType(a4),d0
 	bne.s	sdi_ndos
 
-	bsr.w	TouchBootBlock		;set serial
+	bsr	TouchBootBlock		;set serial
 	move.l	RootCluster(a4),d0
-	bsr.w	Cluster2Block
+	bsr	Cluster2Block
 	move.l	d0,SDI_KEY(a5)
 	clr.w	SDI_KEY+4(a5)		;start of root dir
 	lea	SDI_MSDEBUF(a5),a2	;&MSDEBuffer
 sdi_loop:
 	move.l	a2,-(sp)
 	pea	SDI_KEY(a5)
-	bsr.w	ReadXMSDE
+	bsr	ReadXMSDE
 	addq.l	#8,sp
 	tst.w	d0
 	beq.s	sdi_update		;end of root dir,..
@@ -4321,14 +4321,14 @@ sdi_loop:
 	move.l	d0,MSDE_Time(a2)	;..to Disk name..
 	clr.l	-(sp)
 	move.l	a2,-(sp)
-	bsr.w	WriteXMSDE		;..and write back
+	bsr	WriteXMSDE		;..and write back
 	addq.l	#8,sp
 sdi_update:
 	moveq.l	#TRUE,d0		;"immediately"
-	bsr.w	UpdateDisk
+	bsr	UpdateDisk
 	moveq.l	#TRUE,d2		;"OK"
 sdi_end:
-	bsr.s	CacheFree
+	bsr	CacheFree
 	move.l	d2,d0
 	movem.l	(sp)+,d2/a2
 	unlk	a5
@@ -4384,7 +4384,7 @@ CacheFree:
 	tst.l	(a0)
 	beq.s	cafr_single		;thats all
 
-	bsr.s	FreeBlockBuf
+	bsr	FreeBlockBuf
 	bra.s	CacheFree
 cafr_single:
 	move.l	SingleBuf(a4),d0
@@ -4399,11 +4399,11 @@ cafr_single:
 CacheInit:
 	clr.l	SingleBuf(a4)
 	lea	BufList(a4),a0
-	bsr.w	InitList
+	bsr	InitList
 	clr.w	NormBufsUsed(a4)
 	clr.w	DirBufsUsed(a4)
 	lea	FAT32List(a4),a0
-	bsr.w	InitList		;caution!
+	bsr	InitList		;caution!
 	rts
 
 ;--- free 1 buffer -----------------------------------------
@@ -4413,12 +4413,12 @@ FreeBlockBuf:
 	move.l	a2,-(sp)
 	move.l	a0,a2
 	move.l	a2,a1
-	bsr.w	MyRemove
+	bsr	MyRemove
 	tst.w	BB_OpenCnt(a2)
 	bpl.s	fbb_1			;block unchanged
 
 	move.l	a2,a0
-	bsr.w	WriteBBuf		;write back
+	bsr	WriteBBuf		;write back
 fbb_1:
 	moveq.l	#BB_Data,d0
 	add.l	ClusterSize(a4),d0
@@ -4438,7 +4438,7 @@ CacheFlush:
 	tst.w	BB_OpenCnt(a0)
 	bpl.s	cafl_again
 
-	bsr.w	WriteBBuf
+	bsr	WriteBBuf
 cafl_again:
 	moveq.l	#-1,d1
 	move.l	BufList(a4),d0
@@ -4463,7 +4463,7 @@ cafl_check:
 	beq.s	cafl_end		;thats all
 
 	move.l	a1,a0
-	bsr.w	WriteBBuf		;..to write back
+	bsr	WriteBBuf		;..to write back
 	bra.s	cafl_again
 cafl_end:
 	move.l	(sp)+,d2
@@ -4478,13 +4478,13 @@ UpdateDisk:
 	btst	#3,NewFlags+1(a4)
 	beq.s	ud_blocks
 
-	bsr.s	UpdateFSInfo
-	bsr.w	WriteFAT
+	bsr	UpdateFSInfo
+	bsr	WriteFAT
 ud_blocks:
 	btst	#2,NewFlags+1(a4)
 	beq.s	ud_check		;no changed blocks
 
-	bsr.s	CacheFlush
+	bsr	CacheFlush
 ud_check:
 	tst.l	(sp)			;arg "immediate" still on stack
 	bne.s	ud_now
@@ -4494,20 +4494,20 @@ ud_check:
 	beq.s	ud_now
 
 	and.w	#~12,NewFlags(a4)
-	bsr.s	DoTimer
+	bsr	DoTimer
 	bra.s	ud_end
 
 ud_now:
 	btst	#1,NewFlags+1(a4)
 	beq.s	ud_stop
 ud_update:
-	bsr.w	DiskUpdate
+	bsr	DiskUpdate
 	tst.w	d0
 	beq.s	ud_stop			;writing successful
 
 	move.l	UIText+6*4(a4),-(sp)
 	move.l	d0,-(sp)
-	bsr.w	DoRequest		;report error
+	bsr	DoRequest		;report error
 	addq.l	#8,sp
 	tst.w	d0
 	bne.s	ud_update		;"repeat"
@@ -4516,7 +4516,7 @@ ud_stop:
 	btst	#0,NewFlags+1(a4)
 	beq.s	ud_done
 
-	bsr.w	DiskMotorOff
+	bsr	DiskMotorOff
 ud_done:
 	clr.w	NewFlags(a4)
 
@@ -4531,7 +4531,7 @@ UpdateFSInfo:
 	move.l	FSInfoBlock(a4),d0
 	beq.s	ufsi_end		;no Info-Block..
 
-	bsr.w	ReadSingle
+	bsr	ReadSingle
 	tst.l	d0
 	beq.s	ufsi_end		;..or unreadable
 
@@ -4543,8 +4543,8 @@ UpdateFSInfo:
 	beq.s	ufsi_end		;no change
 
 	move.l	d1,(a1)
-	bsr.w	BlockChanged
-	bsr.w	WriteBBuf
+	bsr	BlockChanged
+	bsr	WriteBBuf
 ufsi_end:
 	rts
 
@@ -4645,14 +4645,14 @@ _r_1:
 	move.l	d0,IO_Offset(a2)	;Byte-Offset
 	clr.l	IO_SecLabel(a2)		;no sector label
 	move.l	a2,a1
-	bsr.w	SafeDoIO
+	bsr	SafeDoIO
 	bra.s	_r_check
 _r_scsi:
 	moveq.l	#READ10,d0
 	moveq.l	#SCSIF_READ,d1
-	bsr.w	Do10byteScsi
+	bsr	Do10byteScsi
 _r_check:
-	bsr.w	DiskSense
+	bsr	DiskSense
 	move.b	d0,LastReadError(a4)
 	bne.s	_r_error
 _r_gnext:
@@ -4675,7 +4675,7 @@ _r_error:
 	move.w	BlockShift(a4),d1
 	lsr.l	d1,d0
 	add.l	d0,8(sp)		;..of error
-	bsr.w	DoRequest
+	bsr	DoRequest
 	add.w	#12,sp
 	tst.w	d0
 	bne.w	_r_group		;"repeat"
@@ -4732,14 +4732,14 @@ _w_1:
 	move.l	d0,IO_Offset(a2)	;Byte-Offset
 	clr.l	IO_SecLabel(a2)		;no sector label
 	move.l	a2,a1
-	bsr.w	SafeDoIO
+	bsr	SafeDoIO
 	bra.s	_w_check
 _w_scsi:
 	moveq.l	#WRITE10,d0
 	moveq.l	#SCSIF_WRITE,d1
-	bsr.w	Do10byteScsi
+	bsr	Do10byteScsi
 _w_check:
-	bsr.w	DiskSense
+	bsr	DiskSense
 	tst.b	d0
 	bne.s	_w_error
 _w_gnext:
@@ -4762,7 +4762,7 @@ _w_error:
 	move.w	BlockShift(a4),d1
 	lsr.l	d1,d0
 	add.l	d0,8(sp)		;..of error
-	bsr.w	DoRequest
+	bsr	DoRequest
 	add.w	#12,sp
 	tst.w	d0
 	bne.w	_w_group		;"repeat"
@@ -4808,7 +4808,7 @@ Do10byteScsi:
 	ZCLRL	(a0)+,d0		;SCSI_SenseData
 	ZCLRL	(a0),d0			;SCSI_SenseLength and SCSI_SenseActual
 	move.l	a2,a1
-	bsr.w	SafeDoIO
+	bsr	SafeDoIO
 	move.l	SCSIStruct+SCSI_Actual(a4),IO_Actual(a2)
 	rts
 
@@ -4832,7 +4832,7 @@ ReadSingle:
 	bpl.s	rs_read
 
 	move.l	a2,a0
-	bsr.w	WriteBBuf
+	bsr	WriteBBuf
 	bra.s	rs_read
 rs_new:
 	move.w	#4096,d1
@@ -4857,7 +4857,7 @@ rs_read:
 	moveq.l	#1,d1
 	move.l	d1,BB_Blocks(a2)
 	lea	BB_Data(a2),a1
-	bsr.w	_Read
+	bsr	_Read
 	tst.l	d0
 	beq.s	rs_end
 
@@ -4932,10 +4932,10 @@ rbn_search:
 	beq.s	rbn_found		;hit in first buffer
 
 	move.l	a2,a1
-	bsr.w	MyRemove
+	bsr	MyRemove
 	lea	BufList(a4),a0
 	move.l	a2,a1
-	bsr.w	MyAddHead		;buffer to top of list
+	bsr	MyAddHead		;buffer to top of list
 rbn_found:
 	move.w	BB_Flags(a2),d0
 	eor.w	d4,d0
@@ -5020,12 +5020,12 @@ rbn_fdswitch:
 	add.w	d1,DirBufsUsed(a4)
 rbn_rok:
 	move.l	a2,a1
-	bsr.w	MyRemove
+	bsr	MyRemove
 	tst.w	BB_OpenCnt(a2)
 	bpl.s	rbn_nowfree		;reuse buffer
 
 	move.l	a2,a0
-	bsr.w	WriteBBuf
+	bsr	WriteBBuf
 rbn_nowfree:
 	move.w	2(a3),d0
 	cmp.w	(a3),d0
@@ -5037,7 +5037,7 @@ rbn_nowfree:
 	subq.w	#1,DirBufsUsed(a4)
 rbn_free:
 	move.l	a2,a0
-	bsr.w	FreeBlockBuf		;..free one and search on
+	bsr	FreeBlockBuf		;..free one and search on
 	subq.w	#1,(a3)			;one less
 	bra.s	rbn_reuse
 
@@ -5096,7 +5096,7 @@ rbn_sfix:
 	clr.w	BB_OpenCnt(a2)
 	lea	BufList(a4),a0
 	move.l	a2,a1
-	bsr.w	MyAddHead		;buffer back in List
+	bsr	MyAddHead		;buffer back in List
 	btst	#0,d4
 	beq.w	rbn_success		;previous block contents not needed
 
@@ -5106,7 +5106,7 @@ rbn_sfix:
 	move.l	BB_Blocks(a2),d1
 	move.l	a2,a1
 	add.w	#BB_Data,a1
-	bsr.w	_Read
+	bsr	_Read
 	tst.l	d0
 	bne.w	rbn_success		;OK
 
@@ -5161,7 +5161,7 @@ wbb_no:
 	add.l	BB_BlockNum(a2),d0
 	move.l	d4,d1
 	sub.l	d2,d1
-	bsr.w	_Write
+	bsr	_Write
 	moveq.l	#-1,d2
 wbb_next:
 	addq.l	#1,d4
@@ -5436,7 +5436,7 @@ GetDiskParams:
 ;- - general check - - - - - - - - - - - - - - - - - - - - -
 
 	clr.b	SearchCount(a4)
-	bsr.w	FreeFATBuf
+	bsr	FreeFATBuf
 	;Clear partition-state before probing, so a failed or partial
 	;detection cannot leak stale FirstBlock/TotalBlocks/PartitionNum
 	;/FATType values from a previous successful mount into gdp_ndos
@@ -5446,21 +5446,21 @@ GetDiskParams:
 	clr.l	HiddenBlocks(a4)
 	clr.w	PartitionNum(a4)
 	clr.w	FATType(a4)
-	bsr.w	DiskStatus
+	bsr	DiskStatus
 	move.w	d0,d3
 	beq.w	gdp_none		;no disk
 
-	bsr.w	DiskGeometry
-	bsr.w	ReportGeometry		;for FDA: temporarily mount whole disk
-	bsr.w	CacheSet
-	bsr.w	DiskChangeNum
-	bsr.w	DiskClear
+	bsr	DiskGeometry
+	bsr	ReportGeometry		;for FDA: temporarily mount whole disk
+	bsr	CacheSet
+	bsr	DiskChangeNum
+	bsr	DiskClear
 	addq.b	#1,SearchCount(a4)
 	addq.b	#1,NoRequest(a4)	;dont report even "no disk"
 	move.l	FirstBlock(a4),d0
-	bsr.w	Test64			;for manually defined partition
+	bsr	Test64			;for manually defined partition
 	moveq.l	#0,d0
-	bsr.w	ReadSingle
+	bsr	ReadSingle
 	subq.b	#1,NoRequest(a4)
 	tst.l	d0
 	bne.s	gdp_mbr
@@ -5505,7 +5505,7 @@ gdp_foreign:
 gdp_notforeign:
 
 	clr.w	PartitionNum(a4)
-	bsr.w	IsBootBlock
+	bsr	IsBootBlock
 	tst.w	d0
 	bne.w	gdp_bootfound		;unpartitioned volume
 
@@ -5540,7 +5540,7 @@ gdp_notforeign:
 	move.w	d3,-(sp)		;save disk status (contains write-protect flag)
 	addq.b	#1,SearchCount(a4)
 	moveq.l	#1,d0			;LBA 1 = GPT header
-	bsr.w	ReadSingle		;FirstBlock is 0 here
+	bsr	ReadSingle		;FirstBlock is 0 here
 	tst.l	d0
 	beq.w	gdp_gpt_cleanup		;read failed
 
@@ -5591,7 +5591,7 @@ gdp_gpt_loop:
 	add.l	d4,d0			;d0 = absolute LBA
 
 	;Read block containing this entry (SingleBuf cache absorbs repeats)
-	bsr.w	ReadSingle
+	bsr	ReadSingle
 	move.l	(sp)+,d1		;restore entry index to d1 temporarily
 	tst.l	d0			;check if read succeeded
 	beq.w	gdp_gpt_cleanup		;read failed
@@ -5661,7 +5661,7 @@ gdp_gpt_found:
 	move.l	d0,d2			;save first LBA across Test64
 	add.l	d1,d0
 	subq.l	#1,d0
-	bsr.w	Test64
+	bsr	Test64
 	tst.l	d0
 	beq.s	gdp_gpt_cleanup		;partition exceeds 4 Gbyte
 
@@ -5697,24 +5697,24 @@ gdp_p1:
 
 	addq.w	#5,d2
 	move.w	d2,d0
-	bsr.w	GetPartition
+	bsr	GetPartition
 	move.l	d0,d4
 	bne.s	gdp_pfound		;found primary partition
 
 	moveq.l	#0,d2
 gdp_plog:
 	moveq.l	#0,d0
-	bsr.w	GetPartition
+	bsr	GetPartition
 	move.l	d0,d4
 	beq.w	gdp_none		;partition not found = no disk
 
-	bsr.w	Test64
+	bsr	Test64
 	tst.l	d0
 	beq.w	gdp_none		;..or beyond 4 Gbyte
 
 	addq.b	#1,SearchCount(a4)
 	move.l	d4,d0
-	bsr.w	ReadSingle		;read next partition table
+	bsr	ReadSingle		;read next partition table
 	tst.l	d0
 	beq.w	gdp_ndos
 
@@ -5723,7 +5723,7 @@ gdp_plog:
 	bpl.s	gdp_plog		;skip this logical partition
 
 	moveq.l	#1,d0
-	bsr.w	GetPartition
+	bsr	GetPartition
 	tst.l	d0			;partition not in expected place,..
 	beq.s	gdp_plog		;..search on below
 gdp_pfound:
@@ -5731,14 +5731,14 @@ gdp_pfound:
 	move.l	d1,TotalBlocks(a4)
 	add.l	d1,d0
 	subq.l	#1,d0
-	bsr.w	Test64
+	bsr	Test64
 	tst.l	d0
 	beq.w	gdp_none		;partition exceeds 4 Gbyte
 
 gdp_readboot:				;shared entry point for GPT
 	addq.b	#1,SearchCount(a4)
 	moveq.l	#0,d0
-	bsr.w	ReadSingle		;read Boot block
+	bsr	ReadSingle		;read Boot block
 	tst.l	d0
 	beq.w	gdp_ndos
 
@@ -5746,7 +5746,7 @@ gdp_readboot:				;shared entry point for GPT
 	cmp.w	#$55AA,510(a0)
 	bne.w	gdp_ndos		;Boot block invalid
 
-	bsr.w	IsBootBlock
+	bsr	IsBootBlock
 	tst.w	d0
 	beq.w	gdp_ndos		;unknown disk type
 
@@ -5820,12 +5820,12 @@ gdp_4:
 	cmp.w	BlockSize(a4),d2
 	beq.s	gdp_5			;keep Block size or..
 
-	bsr.w	CacheFree
+	bsr	CacheFree
 	move.w	d2,BlockSize(a4)
-	bsr.w	SetIntParams
-	bsr.w	CacheSet		;..switch to new
+	bsr	SetIntParams
+	bsr	CacheSet		;..switch to new
 gdp_5:
-	bsr.w	CacheResize		;obey NumFATCopies
+	bsr	CacheResize		;obey NumFATCopies
 	moveq.l	#0,d0
 	move.b	BlocksPerCluster(a4),d0
 	subq.l	#1,d0
@@ -5894,7 +5894,7 @@ gdp_ok:
 	move.l	FirstBlock(a4),d0
 	add.l	TotalBlocks(a4),d0
 	subq.l	#1,d0
-	bsr.w	Test64			;safety for manually defined partition
+	bsr	Test64			;safety for manually defined partition
 	btst	#2,CmdFlags(a4)
 	beq.s	gdp_7				;in direct SCSI mode..
 
@@ -5908,9 +5908,9 @@ gdp_ok:
 	move.l	d0,EnvecBuf+DE_MaxTransfer(a4)	;..observe Read10 limit
 gdp_7:
 	move.l	DosType(a4),DiskType(a4) ;eg. `FAT\0`
-	bsr.w	ReportGeometry
+	bsr	ReportGeometry
 gdp_end:
-	bsr.w	DoTimer
+	bsr	DoTimer
 	move.w	d3,d0
 	ext.l	d0
 	movem.l	(sp)+,d2-d7/a2
@@ -5922,21 +5922,21 @@ gdp_none:
 	bra.s	gdp_error
 
 gdp_ndos:				;readable but incomprehensible
-	bsr.w	ReportGeometry
-	bsr.s	AutoLayout
+	bsr	ReportGeometry
+	bsr	AutoLayout
 	move.l	FirstBlock(a4),d0
 	add.l	TotalBlocks(a4),d0
 	subq.l	#1,d0
-	bsr.w	Test64			;safety for manually defined partition
+	bsr	Test64			;safety for manually defined partition
 	move.l	#ID_NDOS,d0
 	bra.s	gdp_error
 
 gdp_bad:				;unreadable
-	bsr.w	ReportGeometry
+	bsr	ReportGeometry
 	move.l	#ID_BAD,d0
 gdp_error:
 	move.l	d0,DiskType(a4)
-	bsr.w	CacheFree
+	bsr	CacheFree
 	bra.s	gdp_end
 
 gdp_fake:
@@ -5950,7 +5950,7 @@ gdp_fake:
 	move.l	(a0)+,EnvecBuf+DE_LowCyl(a4)
 	move.l	(a0),EnvecBuf+DE_HighCyl(a4)
 	bset	#7,SearchMode(a4)
-	bsr.w	DiskGeometry
+	bsr	DiskGeometry
 	bclr	#7,SearchMode(a4)
 	bra.s	gdp_ndos
 
@@ -6134,10 +6134,10 @@ rge_report:
 	lsl.l	#2,d0
 	move.l	d0,a1			;&DosEnvec
 	lea	EnvecBuf(a4),a0		;updated information..
-	bsr.w	CopyDosEnvec		;..for Format and DiskCopy
+	bsr	CopyDosEnvec		;..for Format and DiskCopy
 	move.l	DiskRequest(a4),a1
 	move.w	#TD_PROTSTATUS,IO_Command(a1)
-	bsr.w	SafeDoIO		;tell FDA
+	bsr	SafeDoIO		;tell FDA
 rge_end:
 	movem.l	(sp)+,d2-d3
 	rts
@@ -6155,18 +6155,18 @@ DiskRemChInt:
 	tst.b	DosType+3(a4)
 	bne.s	drci_cmd
 
-	bsr.w	_Forbid			;mfm/trackdisk v34 bug workaround
+	bsr	_Forbid			;mfm/trackdisk v34 bug workaround
 	move.l	(a2),a1
-	bsr.w	MyRemove		;remove node from list..
-	bsr.w	_Permit
+	bsr	MyRemove		;remove node from list..
+	bsr	_Permit
 	bra.s	drci_free
 drci_cmd:
 	move.l	(a2),a1
 	move.w	#TD_REMCHANGEINT,IO_Command(a1)
-	bsr.w	SafeDoIO
+	bsr	SafeDoIO
 drci_free:
 	move.l	(a2),a1
-	bsr.w	FreeMsg			;..and free it
+	bsr	FreeMsg			;..and free it
 	clr.l	(a2)
 drci_end:
 	move.l	(sp)+,a2
@@ -6182,11 +6182,11 @@ DiskAddChInt:
 	tst.l	DiskReq2(a4)
 	beq.s	daci_new
 
-	bsr.s	DiskRemChInt		;remove old interrupt first
+	bsr	DiskRemChInt		;remove old interrupt first
 daci_new:
 	moveq.l	#IO_SimpleSizeof,d0
 	move.l	ReplyPort(a4),a0
-	bsr.w	AllocMsg		;make second disk IORequest..
+	bsr	AllocMsg		;make second disk IORequest..
 	move.l	d0,DiskReq2(a4)
 	beq.s	daci_error
 
@@ -6219,7 +6219,7 @@ DiskStatus:
 	move.l	DiskRequest(a4),a2
 	move.w	#TD_CHANGESTATE,IO_Command(a2)
 	move.l	a2,a1
-	bsr.w	SafeDoIO
+	bsr	SafeDoIO
 	tst.b	d0
 	bne.s	dst_scsi		;no trackdisk emulation
 
@@ -6228,7 +6228,7 @@ DiskStatus:
 
 	move.w	#TD_PROTSTATUS,IO_Command(a2)
 	move.l	a2,a1
-	bsr.s	SafeDoIO
+	bsr	SafeDoIO
 	tst.l	IO_Actual(a2)
 	bne.s	dst_prot		;Disk read only
 	bra.s	dst_ok
@@ -6256,11 +6256,11 @@ dst_scsi:
 	move.l	d0,IO_Length(a1)
 	lea	SCSIStruct(a4),a0
 	move.l	a0,IO_Data(a1)
-	bsr.s	SafeDoIO
+	bsr	SafeDoIO
 	tst.b	d0
 	beq.s	dst_ok
 
-	bsr.w	DiskSense
+	bsr	DiskSense
 	cmp.b	#TDERR_WRITEPROT,d0
 	beq.s	dst_prot
 dst_none:
@@ -6298,7 +6298,7 @@ DiskChangeNum:
 	move.l	DiskRequest(a4),a2
 	move.w	#TD_CHANGENUM,IO_Command(a2)
 	move.l	a2,a1
-	bsr.s	SafeDoIO
+	bsr	SafeDoIO
 	move.l	IO_Actual(a2),d0
 	move.l	d0,IO_ChangeNum(a2)
 	move.l	(sp)+,a2
@@ -6322,8 +6322,8 @@ DiskUpdate:
 
 	move.l	DiskRequest(a4),a1
 	move.w	UpdateCmd(a4),IO_Command(a1)
-	bsr.s	SafeDoIO
-	bsr.s	DiskSense
+	bsr	SafeDoIO
+	bsr	DiskSense
 	cmp.b	#45,d0
 	beq.s	du_off
 
@@ -6369,7 +6369,7 @@ DiskSense:
 	move.l	d0,IO_Length(a1)
 	lea	SCSIStruct(a4),a0
 	move.l	a0,IO_Data(a1)
-	bsr.w	SafeDoIO
+	bsr	SafeDoIO
 	tst.b	d0
 	bne.s	ds_end			;no sense data
 
@@ -6435,7 +6435,7 @@ DiskGeometry:
 	move.l	a2,IO_Data(a1)
 	moveq.l	#DG_Sizeof,d0
 	move.l	d0,IO_Length(a1)
-	bsr.w	SafeDoIO
+	bsr	SafeDoIO
 	tst.b	d0
 	bne.s	dge_fallback		;device stays silent..
 
@@ -6469,7 +6469,7 @@ dge_fallback:
 
 	move.l	DiskRequest(a4),a1
 	move.w	#TD_GETDRIVETYPE,IO_Command(a1)
-	bsr.w	SafeDoIO
+	bsr	SafeDoIO
 	tst.b	d0
 	bne.w	dge_mountlist		;..if no doubt..
 
@@ -6515,7 +6515,7 @@ dge_readcapacity:
 	clr.l	(a1)+
 	clr.l	(a1)
 	move.l	DiskRequest(a4),a1
-	bsr.w	SafeDoIO
+	bsr	SafeDoIO
 	tst.b	d0
 	bne.s	dge_mountlist
 
@@ -6555,7 +6555,7 @@ dge_dok:
 	move.l	d4,d3
 dge_1:
 	move.l	d3,PhysSize(a4)
-	bsr.w	SetIntParams
+	bsr	SetIntParams
 	move.w	PhysShift(a4),d4
 	move.l	d2,Cylinders(a4)
 	move.w	d1,Surfaces(a4)
@@ -6705,7 +6705,7 @@ xlo_new:
 	beq.s	xlo_n1
 
 	move.l	d0,a0
-	bsr.w	ForceOpenXLock		;..open base dir as well
+	bsr	ForceOpenXLock		;..open base dir as well
 xlo_n1:
 	move.l	d0,XL_Parent(a2)	;for base dir,..
 	moveq.l	#-1,d0			;..mark exclusive or..
@@ -6731,7 +6731,7 @@ xlo_ncopy:
 	move.l	a0,XL_Volume(a2)
 	add.w	#XDOL_XLockList,a0
 	move.l	a2,a1
-	bsr.w	MyAddHead
+	bsr	MyAddHead
 	move.l	a2,d0
 	bra.w	xlo_end
 
@@ -6802,7 +6802,7 @@ lob_ndev:
 lob_nend:
 	clr.b	(a1)
 	move.l	LOB_DIRXL(a5),a0
-	bsr.w	ForceOpenXLock		;open base dir..
+	bsr	ForceOpenXLock		;open base dir..
 	move.l	d0,LOB_DIRXL(a5)	;..even if it is a file
 	lea	LOB_MSDEBUF(a5),a2	;optimize
 
@@ -6814,7 +6814,7 @@ lob_scandir:
 	beq.w	lob_found		;hit
 
 	lea	LOB_NAMEBUF(a5),a1
-	bsr.w	MakeShortName
+	bsr	MakeShortName
 	move.l	a0,LOB_NAMENEXT(a5)
 	moveq.l	#SHARED_LOCK,d4
 	tst.b	(a0)
@@ -6838,7 +6838,7 @@ lob_sd1:
 	swap	d0
 lob_sd2:
 	move.w	XL_MSDE+MSDE_1L(a0),d0
-	bsr.w	Cluster2Block
+	bsr	Cluster2Block
 	move.l	d0,LOB_DIRBLOCK(a5)	;start of dir
 	move.l	d0,LOB_FROM(a5)
 	clr.w	LOB_FROM+4(a5)
@@ -6850,7 +6850,7 @@ lob_readentry:
 	move.w	LOB_FROM+4(a5),d3
 	move.l	a2,-(sp)
 	pea	LOB_FROM(a5)
-	bsr.w	ReadXMSDE
+	bsr	ReadXMSDE
 	addq.w	#8,sp
 	tst.w	d0
 	beq.w	lob_ready		;read error
@@ -6872,7 +6872,7 @@ lob_readentry:
 lob_move:
 	pea	LOB_TO(a5)
 	move.l	a2,-(sp)
-	bsr.w	MoveXMSDE		;..target dir
+	bsr	MoveXMSDE		;..target dir
 	addq.l	#8,sp
 	bra.s	lob_check
 lob_isopt:
@@ -6927,7 +6927,7 @@ lob_chit:
 	move.l	d0,-(sp)
 	move.l	a2,-(sp)
 	move.l	LOB_DIRXL(a5),-(sp)
-	bsr.w	xLock
+	bsr	xLock
 	add.w	#12,sp
 	move.l	d0,d3
 	beq.w	lob_ready		;eg. in use
@@ -6939,17 +6939,17 @@ lob_chit:
 	bne.s	lob_chdir
 
 	move.l	d3,a1
-	bsr.w	CloseXLock
+	bsr	CloseXLock
 	bra.s	lob_nomatch		;..this one
 
 lob_parent:
 	move.l	LOB_DIRXL(a5),a0
-	bsr.w	xParent
+	bsr	xParent
 	move.l	d0,d3
 	beq.w	lob_notfound		;above root is impossible
 lob_chdir:
 	move.l	LOB_DIRXL(a5),a1
-	bsr.w	CloseXLock
+	bsr	CloseXLock
 	move.l	d3,LOB_DIRXL(a5)	;continue in this Object
 	move.l	LOB_NAMENEXT(a5),LOB_NAME(a5)
 	bra.w	lob_scandir
@@ -6976,7 +6976,7 @@ lob_done:
 
 	pea	LOB_NAMEBUF(a5)
 	move.l	LOB_DIRBLOCK(a5),-(sp)
-	bsr.w	UniqueStdName		;..get a unique short name
+	bsr	UniqueStdName		;..get a unique short name
 	addq.l	#8,sp
 lob_copy:
 	lea	LOB_NAMEBUF(a5),a0
@@ -7010,7 +7010,7 @@ lob_fncopy:
 	move.l	a2,-(sp)
 	pea	LOB_TO(a5)
 	move.l	LOB_DIRXL(a5),-(sp)
-	bsr.w	CheckDirSpace
+	bsr	CheckDirSpace
 	add.w	#12,sp
 	move.w	LOB_TO+4(a5),XMSDE_ExtOffset(a2)
 	move.l	LOB_TO(a5),XMSDE_ExtKey(a2)
@@ -7021,18 +7021,18 @@ lob_fncopy:
 	move.l	d0,-(sp)
 	move.l	a2,-(sp)
 	move.l	LOB_DIRXL(a5),-(sp)
-	bsr.w	xLock
+	bsr	xLock
 	add.w	#12,sp
 	move.l	d0,NewObject(a4)
 	beq.w	lob_ready		;no mem
 
 	pea	2.w			;set all 3 time stamps..
 	move.l	d0,-(sp)
-	bsr.w	TouchXLock		;..and save new entry
+	bsr	TouchXLock		;..and save new entry
 	addq.w	#8,sp
 	pea	1.w
 	move.l	LOB_DIRXL(a5),-(sp)
-	bsr.w	TouchXLock		;touch dir
+	bsr	TouchXLock		;touch dir
 	addq.w	#8,sp
 
 ;- - optimize: mark rest of dir as unused  - - - - - - - - -
@@ -7042,25 +7042,25 @@ lob_killtail:
 	move.l	XL_Key(a0),d2
 	move.w	XL_Offset(a0),d3
 	move.l	d2,d0
-	bsr.w	Block2Cluster
+	bsr	Block2Cluster
 	move.l	d0,d4
 	beq.s	lob_ktstart		;unless in fixed size root..
 
-	bsr.w	NextCluster
+	bsr	NextCluster
 	tst.l	d0
 	ble.s	lob_ktstart		;..free following..
 
-	bsr.w	FreeChain		;..clusters
+	bsr	FreeChain		;..clusters
 	move.l	d4,d0
 	moveq.l	#-1,d1
-	bsr.w	PutFATEntry		;cut cluster chain here
+	bsr	PutFATEntry		;cut cluster chain here
 lob_ktstart:
-	bsr.w	NextMSDE		;start below new entry
+	bsr	NextMSDE		;start below new entry
 lob_ktblock:
 	move.l	d2,d0
 	beq.s	lob_ready		;end of dir
 
-	bsr.w	ReadDirBlock
+	bsr	ReadDirBlock
 	move.l	a0,a3			;&Block buffer
 	move.l	d0,a2			;&Block contents
 	moveq.l	#0,d4			;"no changes yet"
@@ -7090,7 +7090,7 @@ lob_ktloop:				;which read-modify-writes
 	dbf	d0,lob_ktloop
 	endif
 
-	bsr.w	NextMSDE
+	bsr	NextMSDE
 	tst.w	d3
 	bne.s	lob_ktentry		;on with same block
 lob_ktnext:
@@ -7099,7 +7099,7 @@ lob_ktnext:
 
 	move.l	a3,a0
 	move.l	a2,d0
-	bsr.w	BlockChanged
+	bsr	BlockChanged
 	bra.s	lob_ktblock
 
 ;- - Done!!! - - - - - - - - - - - - - - - - - - - - - - - -
@@ -7108,7 +7108,7 @@ lob_notfound:
 	move.w	#205,ErrorNum(a4)	;"not found"
 lob_ready:
 	move.l	LOB_DIRXL(a5),a1
-	bsr.w	CloseXLock		;free base dir
+	bsr	CloseXLock		;free base dir
 	moveq.l	#0,d0
 lob_end:
 	movem.l	(sp)+,d2-d4/a2-a3
@@ -7183,7 +7183,7 @@ xParent:
 	beq.s	xpa_end
 
 	move.l	d0,a0
-	bsr.s	OpenXLock
+	bsr	OpenXLock
 xpa_end:
 	rts
 
@@ -7212,7 +7212,7 @@ cxl_1:
 	bne.s	cxl_end			;still used
 
 	move.l	4(a1),d3		;&previous XLock or &XLock list
-	bsr.w	MyRemove		;remove XLock
+	bsr	MyRemove		;remove XLock
 	move.l	d2,a1
 	btst	#3,XL_MSDE+MSDE_Flags(a1)
 	beq.s	cxl_free		;when removed root XLock..
@@ -7223,7 +7223,7 @@ cxl_1:
 	bne.s	cxl_free		;..and XLockList now empty..
 
 	pea	-XDOL_XLockList(a0)
-	bsr.w	UnMountVolume		;..free VolumeNode
+	bsr	UnMountVolume		;..free VolumeNode
 	addq.w	#4,sp
 cxl_free:
 	move.l	d2,a1
@@ -7264,16 +7264,16 @@ gbn_standard:
 	beq.s	gbn_filename
 
 	moveq.l	#11,d0
-	bsr.s	SpcStrCopy		;Disk name (<= 11 chars)
+	bsr	SpcStrCopy		;Disk name (<= 11 chars)
 	bra.s	gbn_namelen
 
 gbn_filename:
 	moveq.l	#8,d0
-	bsr.s	SpcStrCopy		;file-/dir name (<= 8)
+	bsr	SpcStrCopy		;file-/dir name (<= 8)
 	move.b	#'.',(a1)+		;dot
 	move.l	a1,-(sp)
 	moveq.l	#3,d0
-	bsr.s	SpcStrCopy		;Name extension (<= 3)
+	bsr	SpcStrCopy		;Name extension (<= 3)
 	cmp.l	(sp)+,a1
 	bne.s	gbn_namelen
 
@@ -7290,7 +7290,7 @@ gbn_namelen:
 
 	move.b	#$e5,(a0)		;secial case 1. char = MSDE_DELETED
 gbn_convert:
-	bsr.w	StrPc2Amiga		;Name PC437 -> Amiga
+	bsr	StrPc2Amiga		;Name PC437 -> Amiga
 	move.w	#$0c00,d0
 	and.w	CmdFlags(a4),d0
 	beq.s	gbn_end			;keep uppercase
@@ -7364,19 +7364,19 @@ tm2b_t1:
 	bne.s	tm2b_t1
 
 	move.b	#' ',-1(a1)
-	bsr.w	MSDate2Str
+	bsr	MSDate2Str
 	move.b	#' ',(a1)+
 	move.l	4(sp),a0
 	move.w	MSDE_CTime(a0),d1
 	rol.w	#5,d1
 	moveq.l	#$1f,d0
 	and.w	d1,d0
-	bsr.s	Num2Str2		;h
+	bsr	Num2Str2		;h
 	move.b	#':',(a1)+
 	rol.w	#6,d1
 	moveq.l	#$3f,d0
 	and.w	d1,d0
-	bsr.s	Num2Str2		;m
+	bsr	Num2Str2		;m
 	move.b	#':',(a1)+
 	rol.w	#6,d1
 	moveq.l	#$3e,d0
@@ -7386,7 +7386,7 @@ tm2b_t1:
 
 	addq.w	#1,d0
 tm2b_1:
-	bsr.s	Num2Str2		;s
+	bsr	Num2Str2		;s
 	move.w	MSDE_ADate(a0),d1
 	beq.s	tm2b_end		;no..
 
@@ -7404,7 +7404,7 @@ tm2b_t3:
 
 	move.b	#' ',-1(a1)
 	move.w	d1,d0
-	bsr.s	MSDate2Str
+	bsr	MSDate2Str
 tm2b_end:
 	clr.b	(a1)
 	move.l	8(sp),a0
@@ -7434,12 +7434,12 @@ MSDate2Str:
 	move.w	d0,d1
 	moveq.l	#$1f,d0
 	and.w	d1,d0
-	bsr.s	Num2Str2		;day
+	bsr	Num2Str2		;day
 	move.b	#'.',(a1)+
 	ror.w	#5,d1
 	moveq.l	#$f,d0
 	and.w	d1,d0
-	bsr.s	Num2Str2		;month
+	bsr	Num2Str2		;month
 	move.b	#'.',(a1)+
 	ror.w	#4,d1
 	moveq.l	#$7f,d0
@@ -7448,11 +7448,11 @@ MSDate2Str:
 	move.l	d0,d1
 	divu.w	#100,d1
 	move.w	d1,d0
-	bsr.s	Num2Str2		;year
+	bsr	Num2Str2		;year
 	moveq.l	#0,d0
 	swap	d1
 	move.w	d1,d0
-	bsr.s	Num2Str2		;year part 2
+	bsr	Num2Str2		;year part 2
 	rts
 
 ;--- write standard dir entry ------------------------------
@@ -7464,15 +7464,15 @@ WriteMSDE:
 	move.l	XMSDE_Key(a2),d0
 	beq.s	wms_end
 
-	bsr.w	ReadDirBlock
+	bsr	ReadDirBlock
 	tst.l	d0
 	beq.s	wms_end
 
-	bsr.w	BlockChanged
+	bsr	BlockChanged
 	move.l	a2,a0
 	move.l	d0,a1
 	add.w	XMSDE_Offset(a2),a1
-	bsr.w	RCopyMSDE
+	bsr	RCopyMSDE
 wms_end:
 	move.l	(sp)+,a2
 	rts
@@ -7503,23 +7503,23 @@ mxms_2:
 	move.l	d2,d0
 	beq.w	mxms_end
 
-	bsr.w	ReadDirBlock
+	bsr	ReadDirBlock
 	move.l	d0,a2
 	tst.l	d0
 	beq.w	mxms_end
 
-	bsr.w	BlockChanged
+	bsr	BlockChanged
 	add.w	d3,a2			;&source
 mxms_block:
 	move.l	d4,d0
 	beq.w	mxms_end
 
-	bsr.w	ReadDirBlock
+	bsr	ReadDirBlock
 	move.l	d0,a3
 	tst.l	d0
 	beq.w	mxms_end
 
-	bsr.w	BlockChanged
+	bsr	BlockChanged
 	add.w	d5,a3			;&target
 mxms_entry:
 	moveq.l	#MSDE_Sizeof/8,d0
@@ -7543,16 +7543,16 @@ mxms_3:
 
 	moveq.l	#0,d3
 	move.l	d2,d0
-	bsr.w	NextBlock
+	bsr	NextBlock
 	move.l	d0,d2
 	beq.w	mxms_end
 
-	bsr.w	ReadDirBlock
+	bsr	ReadDirBlock
 	move.l	d0,a2			;..or next block
 	tst.l	d0
 	beq.w	mxms_end
 
-	bsr.w	BlockChanged
+	bsr	BlockChanged
 mxms_4:
 	add.w	#MSDE_Sizeof,d5
 	cmp.w	BlockSize(a4),d5
@@ -7560,7 +7560,7 @@ mxms_4:
 
 	moveq.l	#0,d5
 	move.l	d4,d0
-	bsr.w	NextBlock
+	bsr	NextBlock
 	move.l	d0,d4
 	bra.s	mxms_block		;..or next block
 
@@ -7607,7 +7607,7 @@ mxms_cont:
 
 	moveq.l	#0,d5
 	move.l	d4,d0
-	bsr.w	NextBlock
+	bsr	NextBlock
 	move.l	d0,d4			;..or next Block
 mxms_6:
 	move.l	12(a5),a0
@@ -7626,7 +7626,7 @@ DeleteXLock:
 	move.b	#MSDEB_DELETED,(a0)
 	clr.l	-(sp)
 	move.l	a0,-(sp)
-	bsr.s	WriteXMSDE
+	bsr	WriteXMSDE
 	addq.l	#8,sp
 	rts
 
@@ -7664,13 +7664,13 @@ wxms_block:
 	move.l	d2,d0
 	beq.w	wxms_end
 
-	bsr.w	ReadDirBlock
+	bsr	ReadDirBlock
 	tst.l	d0
 	beq.w	wxms_end
 
 	move.l	d0,a2			;&DiskBlock
 	add.w	d3,a2			;&MSDirEntry
-	bsr.w	BlockChanged
+	bsr	BlockChanged
 wxms_next:
 	tst.w	d4
 	beq.w	wxms_norm		;standard entry last
@@ -7749,11 +7749,11 @@ wxms_norm:
 	move.w	d3,XMSDE_Offset(a3)	;remember standard entry pos
 	move.l	a3,a0			;copy..
 	move.l	a2,a1
-	bsr.w	RCopyMSDE		;..Standard entry last
+	bsr	RCopyMSDE		;..Standard entry last
 
 wxms_bready:
 	add.w	#MSDE_Sizeof,a2
-	bsr.w	NextMSDE
+	bsr	NextMSDE
 	subq.w	#1,d4
 	bmi.s	wxms_update
 
@@ -7790,7 +7790,7 @@ rxms_loop:
 	move.l	d2,d0
 	beq.w	rxms_error		;end of dir
 
-	bsr.w	ReadDirBlock
+	bsr	ReadDirBlock
 	tst.l	d0
 	beq.w	rxms_error
 
@@ -7868,7 +7868,7 @@ rxms_xcstop:
 	bset	#31,d4			;"Name end marked"
 rxms_xnext:
 	add.w	#MSDE_Sizeof,a2
-	bsr.w	NextMSDE
+	bsr	NextMSDE
 	tst.w	d3
 	bne.w	rxms_next		;on in same..
 	bra.w	rxms_loop		;..or next Block
@@ -7911,7 +7911,7 @@ rxms_normal:
 	move.w	d3,XMSDE_Offset(a3)
 	move.l	a2,a0			;copy..
 	move.l	a3,a1
-	bsr.w	RCopyMSDE		;..standard entry
+	bsr	RCopyMSDE		;..standard entry
 
 	addq.w	#1,d4
 	beq.s	rxms_ok			;thats already it
@@ -7939,7 +7939,7 @@ rxms_delete:
 	clr.l	XMSDE_ExtKey(a3)	;..and treat like..
 	move.b	#MSDEB_DELETED,(a3)	;..deleted
 rxms_ok:
-	bsr.s	NextMSDE
+	bsr	NextMSDE
 	moveq.l	#1,d0			;"OK"
 
 rxms_end:
@@ -7965,7 +7965,7 @@ NextMSDE:
 
 	moveq.l	#0,d3			;go to beginning..
 	move.l	d2,d0
-	bsr.w	NextBlock		;..of next Block
+	bsr	NextBlock		;..of next Block
 	move.l	d0,d2
 nms_end:
 	rts
@@ -7998,23 +7998,23 @@ xtd_1:
 	move.w	XL_MSDE+MSDE_1L(a0),d0
 xtd_2:
 	move.l	d0,EXD_CLUSTER(a5)	;Start cluster #
-	bsr.w	ExtendChain
+	bsr	ExtendChain
 	move.l	d0,EXD_NEWCLU(a5)	;new Cluster #
 	bmi.s	xtd_error		;no free Clusters
 
-	bsr.w	Cluster2Block		;of new Cluster..
+	bsr	Cluster2Block		;of new Cluster..
 	move.l	d0,EXD_NEWBLOCK(a5)	;first new Block #
 	move.l	d0,EXD_BLOCK(a5)
 	move.b	BlocksPerCluster(a4),EXD_BCOUNT(a5) ;..all blocks..
 xtd_loop:
 	move.l	EXD_BLOCK(a5),d0
 	moveq.l	#RB_DIRNEW,d1
-	bsr.w	ReadBlocks
+	bsr	ReadBlocks
 	tst.l	d0
 	beq.s	xtd_nomem
 
 	move.l	d0,a2			;&Block contents
-	bsr.w	BlockChanged
+	bsr	BlockChanged
 	move.l	a2,a0
 	move.w	BlockSize(a4),d1
 	ifd	__68020__
@@ -8060,7 +8060,7 @@ xtd_init:
 xtd_i1:
 	move.w	EXD_NEWCLU+2(a5),XL_MSDE+MSDE_1L(a0) ;new Cluster = Start
 	move.l	a2,a1
-	bsr.s	MakeIntRef		;copy of dir descriptor..
+	bsr	MakeIntRef		;copy of dir descriptor..
 	move.b	#'.',(a2)		;..as self link
 	move.l	8(a5),a0
 	move.l	XL_Parent(a0),d0
@@ -8069,7 +8069,7 @@ xtd_i1:
 	move.l	d0,a0			;of &XLock of parent dir..
 xtd_i2:
 	lea	MSDE_Sizeof(a2),a1
-	bsr.s	MakeIntRef		;..copy dir descriptor..
+	bsr	MakeIntRef		;..copy dir descriptor..
 	move.w	#"..",MSDE_Sizeof(a2)	;..as parent link
 	moveq.l	#-1,d0
 	move.l	d0,EXD_CLUSTER(a5)	;"initialized"
@@ -8142,13 +8142,13 @@ cds_sloop:
 	bcs.s	cds_end
 	beq.s	cds_end			;as needed..
 
-	bsr.w	NextBlock		;..get follow up blocks
+	bsr	NextBlock		;..get follow up blocks
 	tst.l	d0
 	bne.s	cds_sloop
 cds_extend:
 	move.l	8(sp),a0
 	move.l	a0,-(sp)
-	bsr.w	ExtendDir		;enlarge sub dir
+	bsr	ExtendDir		;enlarge sub dir
 	addq.l	#4,sp
 	move.l	12(sp),a0
 	tst.l	d0
@@ -8203,13 +8203,13 @@ exn_1:
 	swap	d0
 exn_2:
 	move.w	XL_MSDE+MSDE_1L(a0),d0
-	bsr.w	Cluster2Block
+	bsr	Cluster2Block
 	move.l	d0,EXN_DISKKEY(a5)	;Disk Block # of dir
 	clr.w	EXN_DISKKEY+4(a5)	;begin at 1. entry
 exn_read:
 	move.l	a3,-(sp)
 	pea	EXN_DISKKEY(a5)
-	bsr.w	ReadXMSDE
+	bsr	ReadXMSDE
 	addq.w	#8,sp
 	tst.w	d0
 	beq.s	exn_dirend		;end of chain or read error
@@ -8228,7 +8228,7 @@ exn_read:
 
 	move.l	a2,-(sp)
 	move.l	a3,-(sp)
-	bsr.s	GiveFileInfo
+	bsr	GiveFileInfo
 	addq.w	#8,sp
 	moveq.l	#TRUE,d0		;"ok"
 exn_end:
@@ -8263,7 +8263,7 @@ ekey_1:
 	bpl.s	ekey_2
 
 	move.l	a0,-(sp)
-	bsr.w	UpdateDir
+	bsr	UpdateDir
 	move.l	(sp)+,a0
 ekey_2:
 	move.l	8(sp),a1		;&FileInfoBlock
@@ -8272,7 +8272,7 @@ ekey_2:
 	clr.w	FIB_Private(a1)		;ExamineNext() start flag
 	move.l	a1,-(sp)
 	pea	XL_MSDE(a0)
-	bsr.s	GiveFileInfo
+	bsr	GiveFileInfo
 	addq.w	#8,sp
 	moveq.l	#TRUE,d0
 	rts
@@ -8288,7 +8288,7 @@ GiveFileInfo:
 
 	move.l	a2,a0
 	lea	FIB_Name(a3),a1
-	bsr.w	GetBName
+	bsr	GetBName
 
 ;- - type  - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -8351,14 +8351,14 @@ gfi_5:
 
 	move.l	MSDE_Time(a2),d0
 	lea	FIB_Date(a3),a1
-	bsr.w	Date2Dos		;last changed
+	bsr	Date2Dos		;last changed
 
 	btst	#0,CmdFlags(a4)
 	beq.s	gfi_nocomment
 
 	pea	FIB_Comment(a3)
 	move.l	a2,-(sp)		;extra timestamps..
-	bsr.w	TimeMSDE2BStr		;..as comment..
+	bsr	TimeMSDE2BStr		;..as comment..
 	addq.l	#8,sp
 	bra.s	gfi_end
 gfi_nocomment:
@@ -8422,7 +8422,7 @@ exa_new:
 	swap	d0
 exa_1:
 	move.w	XL_MSDE+MSDE_1L(a0),d0
-	bsr.w	Cluster2Block
+	bsr	Cluster2Block
 	moveq.l	#0,d1			;begin at 1. entry
 exa_start:
 	move.l	d0,EXA_DISKKEY(a5)
@@ -8438,7 +8438,7 @@ exa_entry:
 	move.w	EXA_DISKKEY+4(a5),EXA_LASTKEY+4(a5)
 	pea	EXA_MSDEBUF(a5)
 	pea	EXA_DISKKEY(a5)
-	bsr.w	ReadXMSDE
+	bsr	ReadXMSDE
 	addq.w	#8,sp
 	tst.w	d0
 	beq.w	exa_dirend		;read error
@@ -8483,7 +8483,7 @@ exa_2:
 	move.l	d1,ED_Name(a2)
 	move.l	a3,a1
 	add.l	d0,a3
-	bsr.w	GetBName
+	bsr	GetBName
 	tst.w	d4
 	beq.w	exa_match
 
@@ -8537,7 +8537,7 @@ exa_7:
 
 	move.l	EXA_MSDEBUF+MSDE_Time(a5),d0
 	lea	ED_Days(a2),a1
-	bsr.w	Date2Dos		;"last changed"
+	bsr	Date2Dos		;"last changed"
 	cmp.w	#5,d4
 	bcs.s	exa_match
 
@@ -8556,7 +8556,7 @@ exa_7:
 	move.l	a3,-(sp)
 	add.l	d0,a3
 	pea	EXA_MSDEBUF(a5)
-	bsr.w	TimeMSDE2BStr
+	bsr	TimeMSDE2BStr
 	addq.l	#8,sp
 	bra.s	exa_8
 exa_nocomment:
@@ -8661,7 +8661,7 @@ SetProtect:
 	pea	INTERNAL_MODE&EXCLUSIVE_LOCK
 	move.l	12(a5),-(sp)
 	move.l	8(a5),-(sp)
-	bsr.w	LocateObj
+	bsr	LocateObj
 	add.w	#12,sp
 	tst.l	d0
 	beq.s	spr_error		;Object not found
@@ -8692,9 +8692,9 @@ spr_3:
 spr_4:
 	move.b	d1,XL_MSDE+MSDE_Flags(a3)
 	lea	XL_MSDE(a3),a0
-	bsr.w	WriteMSDE
+	bsr	WriteMSDE
 	move.l	a3,a1
-	bsr.w	CloseXLock
+	bsr	CloseXLock
 	moveq.l	#TRUE,d0		;"OK"
 spr_end:
 	move.l	(sp)+,a3
@@ -8713,9 +8713,9 @@ TouchXLock:
 	link.w	a5,#-DS_Sizeof
 	move.l	d2,-(sp)
 	pea	-DS_Sizeof(a5)
-	bsr.w	_DateStamp
+	bsr	_DateStamp
 	pea	-DS_Sizeof(a5)
-	bsr.w	Date2MS
+	bsr	Date2MS
 	addq.l	#8,sp
 	swap	d0			;time << 16 + date
 	move.l	8(a5),a0		;&XLock
@@ -8742,7 +8742,7 @@ txl_update:
 	tst.l	d2
 	bgt.s	txl_all
 
-	bsr.w	WriteMSDE		;write standard entry only
+	bsr	WriteMSDE		;write standard entry only
 txl_end:
 	move.l	(sp)+,d2
 	unlk	a5
@@ -8763,7 +8763,7 @@ txl_read:
 txl_all:
 	clr.l	-(sp)
 	move.l	a0,-(sp)
-	bsr.w	WriteXMSDE		;keep long Name
+	bsr	WriteXMSDE		;keep long Name
 	addq.l	#8,sp
 	bra.s	txl_end
 
@@ -8794,7 +8794,7 @@ fff_end:
 ;--- new "FAT changed" flags -------------------------------
 
 NewFATFlags:
-	bsr.s	FreeFATFlags
+	bsr	FreeFATFlags
 	tst.w	FATType(a4)		;this much work..
 	ble.s	nff_end			;..only for FAT16
 
@@ -8820,7 +8820,7 @@ ReadFAT:
 
 	move.l	BlocksPerFAT(a4),d0
 	move.l	d0,FATBNum(a4)
-	bsr.s	NewFATFlags
+	bsr	NewFATFlags
 	move.l	FATBNum(a4),d0
 	move.w	BlockShift(a4),d1
 	lsl.l	d1,d0
@@ -8845,7 +8845,7 @@ rf_start:
 	move.l	BlocksPerFAT(a4),d2
 	move.l	d2,d1
 	move.l	a2,a1
-	bsr.w	_Read			;try all at once,..
+	bsr	_Read			;try all at once,..
 	cmp.l	d0,d2
 	beq.s	rf_ok			;..OK
 
@@ -8861,7 +8861,7 @@ rf_fat:
 	add.l	FirstBlock(a4),d0
 	moveq.l	#1,d1
 	move.l	a2,a1
-	bsr.w	_Read
+	bsr	_Read
 	tst.l	d0			;when unreadable..
 	bne.s	rf_copy
 
@@ -8923,7 +8923,7 @@ rf_anext:
 
 rf_acheck:
 	move.l	d2,d0
-	bsr.w	ReadSingle
+	bsr	ReadSingle
 	tst.l	d0
 	beq.s	rf_anext
 
@@ -8941,7 +8941,7 @@ rf_acloop:
 	bra.s	rf_anext
 
 rf_abreak:
-	bsr.w	FreeFATBuf
+	bsr	FreeFATBuf
 	bra.w	rf_end
 
 ;- - count free clusters  - - - - - - - - - - - - - - - - -
@@ -8952,7 +8952,7 @@ rf_scan:
 	moveq.l	#0,d4
 rf_count:
 	move.l	d2,d0
-	bsr.w	GetFATEntry		;scan FAT..
+	bsr	GetFATEntry		;scan FAT..
 	tst.l	d0
 	bne.s	rf_cnext
 
@@ -8983,7 +8983,7 @@ rf_32bit:
 rf_32init:
 	move.l	d0,a2
 	lea	FAT32List(a4),a0
-	bsr.w	InitList
+	bsr	InitList
 	move.l	#F32B_Sizeof-F32B_Data,d0
 	move.w	BlockShift(a4),d1
 	lsr.l	d1,d0
@@ -8992,7 +8992,7 @@ rf_32init:
 rf_32iloop:
 	lea	FAT32List(a4),a0
 	move.l	a2,a1
-	bsr.w	MyAddHead		;add Segments to list
+	bsr	MyAddHead		;add Segments to list
 	moveq.l	#-1,d0
 	move.l	d0,F32B_Start(a2)	;"empty"
 	clr.l	F32B_Flags(a2)
@@ -9022,7 +9022,7 @@ ScanFAT32:
 sf32_block:
 	move.l	d2,d0
 	moveq.l	#0,d1
-	bsr.w	MoveFATWindow
+	bsr	MoveFATWindow
 	tst.l	d0
 	beq.s	sf32_finished		;read error, stop
 
@@ -9114,7 +9114,7 @@ wf_all:
 	move.l	d2,d0
 	move.l	d4,d1
 	move.l	FATBuffer(a4),a0
-	bsr.w	_Write			;write whole window at once
+	bsr	_Write			;write whole window at once
 	add.l	BlocksPerFAT(a4),d2
 	subq.b	#1,d3
 	bgt.s	wf_all
@@ -9183,7 +9183,7 @@ wf_sflush:
 	move.l	(sp)+,d1
 	move.l	d2,d0
 	add.l	d1,d2
-	bsr.w	_Write			;..written at once
+	bsr	_Write			;..written at once
 	moveq.l	#0,d1
 	addq.l	#1,d2
 	bra.s	wf_sskip3
@@ -9266,7 +9266,7 @@ wf32_count:
 	add.l	d4,d0
 	add.l	d7,d0
 	move.l	d3,d1
-	bsr.w	_Write			;..and write at once
+	bsr	_Write			;..and write at once
 	add.l	d3,d7
 	addq.l	#1,d7
 	bra.s	wf32_skip
@@ -9290,7 +9290,7 @@ wf32_end:
 ;--- free --------------------------------------------------
 
 FreeFATBuf:
-	bsr.w	FreeFATFlags
+	bsr	FreeFATFlags
 	move.l	FATBuffer(a4),d1
 	beq.s	ffb_end
 
@@ -9299,7 +9299,7 @@ FreeFATBuf:
 	CALLEXEC FreeMem
 	clr.l	FATBuffer(a4)
 	lea	FAT32List(a4),a0
-	bsr.w	InitList
+	bsr	InitList
 	bclr	#3,NewFlags+1(a4)
 ffb_end:
 	rts
@@ -9336,7 +9336,7 @@ mfw_snext:
 	tst.l	F32B_Flags(a2)
 	beq.s	mfw_read
 
-	bsr.w	WriteFAT
+	bsr	WriteFAT
 mfw_read:
 	move.l	d5,F32B_Start(a2)
 	move.w	BlockShift(a4),d1
@@ -9360,7 +9360,7 @@ mfw_rtry:
 	move.l	d4,d0
 	move.l	d5,d1
 	lea	F32B_Data(a2),a1
-	bsr.w	_Read
+	bsr	_Read
 	cmp.l	d0,d5
 	beq.s	mfw_found
 
@@ -9377,10 +9377,10 @@ mfw_rf1:
 	bgt.s	mfw_rf1
 mfw_found:
 	move.l	a2,a1
-	bsr.w	MyRemove
+	bsr	MyRemove
 	lea	FAT32List(a4),a0
 	move.l	a2,a1
-	bsr.w	MyAddHead
+	bsr	MyAddHead
 mfw_first:
 	lsl.l	#2,d2			;Segment Byte Offset
 	tst.w	d3
@@ -9416,7 +9416,7 @@ GetFATEntry:
 
 	move.l	d1,d0
 	moveq.l	#0,d1
-	bsr.w	MoveFATWindow		;32bit entries
+	bsr	MoveFATWindow		;32bit entries
 	move.l	d0,a0
 	move.l	(a0),d0
 	and.b	#$0f,d0			;only 28bit are actually used
@@ -9480,7 +9480,7 @@ PutFATEntry:
 
 	move.l	d1,d0
 	moveq.l	#-1,d1
-	bsr.w	MoveFATWindow		;32bit entries
+	bsr	MoveFATWindow		;32bit entries
 	move.l	d0,a0
 	ReverseL d2
 	and.b	#$0f,d2			;only 28bit are actually used
@@ -9546,7 +9546,7 @@ ExtendChain:
 	beq.s	xch_add			;start new chain
 xch_search:
 	move.l	d2,d0
-	bsr.w	NextCluster
+	bsr	NextCluster
 	tst.l	d0			;find last Cluster
 	bmi.s	xch_add
 
@@ -9571,20 +9571,20 @@ xch_loop:
 	moveq.l	#2,d2			;..then 2 ~ pred-1..
 xch_2:
 	move.l	d2,d0
-	bsr.w	GetFATEntry
+	bsr	GetFATEntry
 	tst.l	d0			;..for free Clusters
 	bne.s	xch_loop
 
 	move.l	d2,NextFreeCluster(a4)
 	move.l	d2,d0
 	moveq.l	#-1,d1
-	bsr.w	PutFATEntry		;found Cluster = "end of chain"
+	bsr	PutFATEntry		;found Cluster = "end of chain"
 
 	move.l	d4,d0
 	ble.s	xch_end			;if predictor valid,..
 
 	move.l	d2,d1
-	bsr.w	PutFATEntry		;..append there
+	bsr	PutFATEntry		;..append there
 xch_end:
 	move.l	d2,d0
 	movem.l	(sp)+,d2-d4
@@ -9616,10 +9616,10 @@ fch_loop:
 	move.l	d2,d4			;..cluster #
 fch_free:
 	move.l	d2,d0
-	bsr.w	NextCluster		;read and..
+	bsr	NextCluster		;read and..
 	exg.l	d0,d2
 	moveq.l	#0,d1
-	bsr.w	PutFATEntry		;..delete entry
+	bsr	PutFATEntry		;..delete entry
 	addq.l	#1,d3
 	tst.l	d2
 	bgt.s	fch_loop
@@ -9658,7 +9658,7 @@ of_open:
 	move.l	d0,-(sp)
 	move.l	12(a5),-(sp)
 	move.l	d2,-(sp)
-	bsr.w	LocateObj
+	bsr	LocateObj
 	add.w	#12,sp
 	move.l	d0,d2
 	bne.s	of_check
@@ -9679,7 +9679,7 @@ of_check:
 	bra.s	of_close
 of_freeold:
 	move.l	d2,a0
-	bsr.w	FreeObj			;overwrite old object
+	bsr	FreeObj			;overwrite old object
 	tst.w	d0
 	beq.s	of_close
 
@@ -9687,7 +9687,7 @@ of_freeold:
 	move.b	#$20,XL_MSDE+MSDE_Flags(a0)
 	pea	2.w			;set 3 times
 	move.l	a0,-(sp)
-	bsr.w	TouchXLock
+	bsr	TouchXLock
 	addq.l	#8,sp
 of_isfile:
 	moveq.l	#XFH_Sizeof,d0
@@ -9714,7 +9714,7 @@ of_1:
 	move.l	d0,XL_FileChain(a0)	;..init append pointer
 of_2:
 	lea	FileList(a4),a0
-	bsr.w	MyAddHead
+	bsr	MyAddHead
 of_end:
 	move.l	d3,d0
 	movem.l	(sp)+,d2-d3
@@ -9728,7 +9728,7 @@ of_close:
 	beq.s	of_end
 
 	move.l	d2,a1
-	bsr.w	CloseXLock
+	bsr	CloseXLock
 	bra.s	of_end
 
 ;--- close file --------------------------------------------
@@ -9745,12 +9745,12 @@ CloseFile:
 	move.w	XFH_Changed(a2),d0	;set access or change date..
 	move.l	d0,-(sp)
 	move.l	XFH_XLock(a2),-(sp)
-	bsr.w	TouchXLock		;..and write dir entry
+	bsr	TouchXLock		;..and write dir entry
 	addq.l	#8,sp
 	move.l	XFH_XLock(a2),a1
-	bsr.w	CloseXLock
+	bsr	CloseXLock
 	move.l	a2,a1
-	bsr.w	MyRemove
+	bsr	MyRemove
 	moveq.l	#XFH_Sizeof,d0
 	move.l	a2,a1
 	CALLEXEC FreeMem
@@ -9860,7 +9860,7 @@ sfp_loop:
 	ble.s	sfp_error		;Cluster chain too short  for target position
 
 	move.l	d0,d5
-	bsr.w	NextCluster
+	bsr	NextCluster
 sfp_next:
 	subq.l	#1,d3
 	bcc.s	sfp_loop
@@ -9870,7 +9870,7 @@ sfp_next:
 sfp_found:
 	move.l	d4,XFH_CurrentPos(a0)
 	move.l	d5,d0
-	bsr.s	UpdateFileChain
+	bsr	UpdateFileChain
 	move.l	d2,d0			;return old Position
 	bra.s	sfp_end
 
@@ -9927,7 +9927,7 @@ rff_end:
 rff_ready:
 	move.l	d6,d0
 	move.l	a2,a0
-	bsr.s	UpdateFileChain
+	bsr	UpdateFileChain
 	move.l	RFF_RESULT(a5),d0
 	bra.s	rff_end
 
@@ -9958,7 +9958,7 @@ rff_1:
 
 	move.l	a3,d0
 	move.l	d5,d1
-	bsr.w	CheckDirect
+	bsr	CheckDirect
 	move.w	d0,RFF_MODE(a5)
 
 ;- - find a swath of consecutive clusters  - - - - - - - - -
@@ -9974,7 +9974,7 @@ rff_swath:
 rff_scluster:
 	move.l	d2,d6
 	move.l	d2,d0
-	bsr.w	NextCluster
+	bsr	NextCluster
 	exg.l	d0,d2
 	addq.l	#1,d0
 	cmp.l	d0,d2
@@ -9997,18 +9997,18 @@ rff_sblock:
 rff_spart:
 	move.l	d2,d0
 	move.l	d3,d1
-	bsr.w	BufScan
+	bsr	BufScan
 	move.l	d1,d5			;# direct transfer blocks
 	bne.s	rff_direct
 
 rff_buffered:
 	move.l	d2,d0
-	bsr.w	Cluster2Block
+	bsr	Cluster2Block
 	moveq.l	#RB_FILEREAD,d1
 	move.l	RFF_FSIZE(a5),a0
 	add.l	d5,a0
 	sub.l	XFH_CurrentPos(a2),a0	;Bytes from Cluster begin to end of file
-	bsr.w	ReadBlocks
+	bsr	ReadBlocks
 	tst.l	d0
 	beq.w	rff_error		;read error
 
@@ -10041,7 +10041,7 @@ rff_direct:
 	bpl.s	rff_emulate
 
 	move.l	a3,a1			;target
-	bsr.w	_Read
+	bsr	_Read
 rff_ereturn:
 	cmp.l	d0,d5
 	bne.w	rff_error		;read error
@@ -10073,7 +10073,7 @@ rff_emulate:
 	move.b	BlocksPerCluster(a4),d4
 	moveq.l	#0,d0			;use 1 buffer..
 	moveq.l	#RB_FILENEW,d1
-	bsr.w	ReadBlocks
+	bsr	ReadBlocks
 	tst.l	d0
 	beq.s	rff_eend
 
@@ -10083,7 +10083,7 @@ rff_eloop:
 	move.l	d2,d0
 	move.l	d4,d1
 	move.l	a2,a1
-	bsr.w	_Read
+	bsr	_Read
 	cmp.l	d0,d4
 	bne.s	rff_eend		;read error
 
@@ -10142,7 +10142,7 @@ chd_no:
 BufScan:
 	movem.l	d2-d3,-(sp)
 	move.l	d1,d3
-	bsr.w	Cluster2Block
+	bsr	Cluster2Block
 	add.l	FirstBlock(a4),d0	;abs. Block #
 	move.l	d3,d1
 	move.w	ClusterShift(a4),d3
@@ -10179,10 +10179,10 @@ bs_move:
 	beq.s	bs_end			;optimize:..
 
 	move.l	d2,a1
-	bsr.w	MyRemove
+	bsr	MyRemove
 	lea	BufList(a4),a0
 	move.l	d2,a1
-	bsr.w	MyAddHead		;..Puffer to start of list
+	bsr	MyAddHead		;..Puffer to start of list
 	move.l	d3,d0
 	moveq.l	#0,d1
 	bra.s	bs_end
@@ -10248,7 +10248,7 @@ wtf_3:
 	bgt.s	wtf_firstc		;resume last Cluster..
 
 	move.l	d7,d0
-	bsr.w	ExtendChain
+	bsr	ExtendChain
 	tst.l	d0
 	bmi.w	wtf_ready		;Disk full
 
@@ -10269,7 +10269,7 @@ wtf_firstc:
 	move.l	d2,WTF_CLUSTER(a5)
 	move.l	a3,d0
 	move.l	d5,d1
-	bsr.w	CheckDirect
+	bsr	CheckDirect
 	move.w	d0,WTF_MODE(a5)
 
 ;- - find a swath of consecutive clusters  - - - - - - - - -
@@ -10285,7 +10285,7 @@ wtf_swath:
 wtf_scluster:
 	move.l	d2,d7
 	move.l	d2,d0
-	bsr.w	NextCluster		;next cluster is..
+	bsr	NextCluster		;next cluster is..
 	tst.l	d0
 	bgt.s	wtf_s1			;..already present,..
 
@@ -10293,7 +10293,7 @@ wtf_scluster:
 	beq.s	wtf_s1			;..not needed..
 
 	move.l	d2,d0			;fill up disk, then stop
-	bsr.w	ExtendChain		;..or new
+	bsr	ExtendChain		;..or new
 wtf_s1:
 	exg.l	d0,d2
 	addq.l	#1,d0
@@ -10317,7 +10317,7 @@ wtf_sblock:
 wtf_spart:
 	move.l	d2,d0
 	move.l	d3,d1
-	bsr.w	BufScan
+	bsr	BufScan
 	move.l	d1,d5			;# blocks for direct transfer
 	bne.s	wtf_direct
 
@@ -10332,12 +10332,12 @@ wtf_bufread:
 	moveq.l	#RB_FILEREAD,d6
 wtf_buffered:
 	move.l	d2,d0
-	bsr.w	Cluster2Block
+	bsr	Cluster2Block
 	move.l	d6,d1
 	move.l	WTF_FSIZE(a5),a0
 	add.l	d5,a0
 	sub.l	WTF_POS(a5),a0		;Bytes from Cluster begin to end of file
-	bsr.w	ReadBlocks
+	bsr	ReadBlocks
 	tst.l	d0
 	beq.w	wtf_ready		;read error
 
@@ -10350,7 +10350,7 @@ wtf_buffered:
 
 	move.l	d1,d0			;..to end of buffer
 wtf_bcopy:
-	bsr.w	SetDirty		;changed blocks
+	bsr	SetDirty		;changed blocks
 	move.l	a3,a0			;&source
 	sub.l	d0,d3			;mark progress
 	sub.l	d0,d4
@@ -10371,7 +10371,7 @@ wtf_direct:
 	bpl.s	wtf_emulate
 
 	move.l	a3,a0			;source
-	bsr.w	_Write
+	bsr	_Write
 wtf_ereturn:
 	cmp.l	d0,d5
 	bne.s	wtf_ready		;write error
@@ -10403,7 +10403,7 @@ wtf_emulate:
 	move.b	BlocksPerCluster(a4),d4
 	moveq.l	#0,d0			;temporarily use one block buffer..
 	moveq.l	#RB_FILENEW,d1
-	bsr.w	ReadBlocks
+	bsr	ReadBlocks
 	tst.l	d0
 	beq.s	wtf_eend
 
@@ -10418,7 +10418,7 @@ wtf_eloop:
 	move.l	d2,d0
 	move.l	d4,d1
 	move.l	a2,a0
-	bsr.w	_Write
+	bsr	_Write
 	cmp.l	d0,d4
 	bne.s	wtf_eend		;write error
 
@@ -10452,7 +10452,7 @@ wtf_r1:
 wtf_r2:
 	move.l	d7,d0
 	move.l	a2,a0
-	bsr.w	UpdateFileChain
+	bsr	UpdateFileChain
 	bra.w	wtf_end
 
 ;--- alter file length -------------------------------------
@@ -10572,7 +10572,7 @@ sfs_u1:
 	clr.w	XL_MSDE+MSDE_1H(a3)
 	bra.s	sfs_ufree
 sfs_uwalk:
-	bsr.w	NextCluster		;skip Clusters 0...n-1
+	bsr	NextCluster		;skip Clusters 0...n-1
 sfs_unext:
 	tst.l	d0
 	ble.w	sfs_seekerr
@@ -10583,15 +10583,15 @@ sfs_unext:
 	move.l	d5,XL_FilePos(a3)
 	move.l	d0,XL_FileChain(a3)
 	move.l	d0,d2
-	bsr.w	NextCluster		;Cluster n..
+	bsr	NextCluster		;Cluster n..
 	move.l	d0,d4
 	move.l	d2,d0
 	moveq.l	#-1,d1
-	bsr.w	PutFATEntry		;..= new end of chain
+	bsr	PutFATEntry		;..= new end of chain
 	moveq.l	#-1,d3
 sfs_ufree:
 	move.l	d4,d0
-	bsr.w	FreeChain		;free Clusters n+1...?
+	bsr	FreeChain		;free Clusters n+1...?
 	exg.l	d3,d4			;for sfs_sdjust
 	cmp.l	XFH_CurrentPos(a2),d5	;limit new Position..
 	bcc.s	sfs_adjust
@@ -10613,7 +10613,7 @@ sfs_append:
 	move.l	d3,d2			;# Cluster to be appended
 	add.l	d4,d3
 	move.l	XL_FileChain(a3),d0
-	bsr.w	ExtendChain
+	bsr	ExtendChain
 	move.l	d0,d4			;first new Cluster..
 	bmi.s	sfs_abreak
 
@@ -10629,7 +10629,7 @@ sfs_append:
 	swap	d0
 	bra.s	sfs_anext
 sfs_aloop:
-	bsr.w	ExtendChain		;extend chain
+	bsr	ExtendChain		;extend chain
 	tst.l	d0
 	bmi.s	sfs_abreak
 sfs_anext:
@@ -10723,7 +10723,7 @@ upd_scan:
 	bne.s	upd_next		;not in this dir
 
 	add.w	#XL_MSDE,a0
-	bsr.w	WriteMSDE		;update dir entry
+	bsr	WriteMSDE		;update dir entry
 	moveq.l	#1,d2			;something done :)
 upd_next:
 	move.l	(a3),a3
@@ -10734,7 +10734,7 @@ upd_done:
 
 	pea	1.w
 	move.l	a2,-(sp)
-	bsr.w	TouchXLock		;..report this outside
+	bsr	TouchXLock		;..report this outside
 	addq.l	#8,sp
 upd_ok:
 	move.l	d2,d0
@@ -10772,13 +10772,13 @@ fo_1:
 	btst	#4,d1
 	beq.s	fo_freechain		;a file
 
-	bsr.w	Cluster2Block
+	bsr	Cluster2Block
 	move.l	d0,d2
 fo_block:
 	move.l	d2,d0
 	beq.s	fo_freechain		;end of chain
 
-	bsr.w	ReadDirBlock
+	bsr	ReadDirBlock
 	tst.l	d0
 	beq.s	fo_inuse		;read error
 
@@ -10806,12 +10806,12 @@ fo_enext:
 	bcs.s	fo_entry
 
 	move.l	d2,d0
-	bsr.w	NextBlock
+	bsr	NextBlock
 	move.l	d0,d2
 	bra.s	fo_block
 fo_freechain:
 	move.l	d4,d0
-	bsr.w	FreeChain		;free Cluster chain..
+	bsr	FreeChain		;free Cluster chain..
 fo_reset:
 	clr.l	XL_MSDE+MSDE_FSize(a2)
 	clr.w	XL_MSDE+MSDE_1L(a2)	;..and delete link..
@@ -10824,7 +10824,7 @@ fo_2:
 	clr.l	XL_FileChain(a2)
 	pea	1.w
 	move.l	XL_Parent(a2),-(sp)	;set date of parent..
-	bsr.w	TouchXLock		;..dir
+	bsr	TouchXLock		;..dir
 	addq.l	#8,sp
 fo_ok:
 	moveq.l	#TRUE,d0
@@ -10856,26 +10856,26 @@ DeleteObj:
 	pea	(EXCLUSIVE_LOCK).w
 	move.l	12(a5),-(sp)
 	move.l	8(a5),-(sp)
-	bsr.w	LocateObj
+	bsr	LocateObj
 	add.w	#12,sp
 	move.l	d0,a2
 	tst.l	d0
 	beq.s	do_error		;not found
 
 	move.l	a2,a0
-	bsr.w	FreeObj
+	bsr	FreeObj
 	tst.w	d0
 	beq.s	do_close		;no permission
 
 	move.l	a2,a0
-	bsr.w	DeleteXLock
+	bsr	DeleteXLock
 	move.l	a2,a1
-	bsr.w	CloseXLock
+	bsr	CloseXLock
 	moveq.l	#TRUE,d0		;"OK"
 	bra.s	do_end
 do_close:
 	move.l	a2,a1
-	bsr.w	CloseXLock
+	bsr	CloseXLock
 do_error:
 	moveq.l	#FALSE,d0
 do_end:
@@ -10893,7 +10893,7 @@ SetFileDate:
 	pea	INTERNAL_MODE&EXCLUSIVE_LOCK
 	move.l	12(a5),-(sp)
 	move.l	8(a5),-(sp)
-	bsr.w	LocateObj
+	bsr	LocateObj
 	add.w	#12,sp
 	move.l	d0,a2
 	tst.l	d0
@@ -10914,14 +10914,14 @@ SetFileDate:
 	add.l	-(a0),d0		;DS_Days
 	move.l	d0,-(a1)
 	pea	-12(a5)
-	bsr.w	Date2MS
+	bsr	Date2MS
 	addq.l	#4,sp
 	swap	d0
 	move.l	d0,XL_MSDE+MSDE_Time(a2)
 	lea	XL_MSDE(a2),a0
-	bsr.w	WriteMSDE
+	bsr	WriteMSDE
 	move.l	a2,a1
-	bsr.w	CloseXLock
+	bsr	CloseXLock
 	moveq.l	#TRUE,d0		;"OK"
 sfd_end:
 	move.l	(sp)+,a2
@@ -10950,7 +10950,7 @@ SetComment:
 	bne.w	sc_error		;not a command
 
 	lea	sc_words(pc),a1
-	bsr.w	sc_scan
+	bsr	sc_scan
 	move.w	d0,d2
 	beq.w	sc_error		;no valid command
 
@@ -10963,19 +10963,19 @@ SetComment:
 	subq.w	#1,d2
 	bne.s	sc_transform
 
-	bsr.w	SetOptions
+	bsr	SetOptions
 	bra.w	sc_end
 sc_scandisk:
-	bsr.w	ScanDisk
+	bsr	ScanDisk
 	bra.w	sc_end
 sc_erase:
-	bsr.w	SecurityErase
+	bsr	SecurityErase
 	bra.s	sc_end
 sc_transform:
 	pea	INTERNAL_MODE&EXCLUSIVE_LOCK
 	move.l	12(a5),-(sp)
 	move.l	8(a5),-(sp)
-	bsr.w	LocateObj
+	bsr	LocateObj
 	add.w	#12,sp
 	move.l	d0,a2
 	tst.l	d0
@@ -11004,10 +11004,10 @@ sc_2f1:
 	tst.l	d0
 	ble.s	sc_2f2
 
-	bsr.w	Cluster2Block
+	bsr	Cluster2Block
 sc_2floop:
 	addq.l	#1,d2			;# dir blocks..
-	bsr.w	NextBlock
+	bsr	NextBlock
 	tst.l	d0
 	bne.s	sc_2floop
 sc_2f2:
@@ -11026,10 +11026,10 @@ sc_2dir:
 
 sc_writeback:
 	lea	XL_MSDE(a2),a0
-	bsr.w	WriteMSDE
+	bsr	WriteMSDE
 sc_closexlock:
 	move.l	a2,a1
-	bsr.w	CloseXLock
+	bsr	CloseXLock
 	moveq.l	#TRUE,d0
 sc_end:
 	movem.l	(sp)+,d2/a2
@@ -11194,15 +11194,15 @@ se_1:
 	moveq.l	#0,d1
 	bset	d0,d1
 	move.l	d1,SD_STEPMASK(a5)	;..steps
-	bsr.w	OpenProgWindow
+	bsr	OpenProgWindow
 	move.l	d0,SD_WINDOW(a5)
-	bsr.w	sd_initwingfx
+	bsr	sd_initwingfx
 
 ;- - zero blocks - - - - - - - - - - - - - - - - - - - - - -
 
 	sub.l	a3,a3			;still no zero buffer
 	move.l	UIText+14*4(a4),a0
-	bsr.w	sd_text
+	bsr	sd_text
 	moveq.l	#2,d2			;Cluster #
 	clr.l	SD_OPENCHAINS(a5)	;here: # zeroed Clusters
 	moveq.l	#-1,d6			;try CFA_ERASE_SECTORS..
@@ -11222,7 +11222,7 @@ se_1:
 se_swath:
 	move.l	SD_OPENCHAINS(a5),d0
 	add.l	d0,SD_DONE(a5)
-	bsr.w	sd_bar			;update progresss bar
+	bsr	sd_bar			;update progresss bar
 	cmp.w	#KEY_ESC,SD_LASTKEY(a5)
 	beq.w	se_stop			;user stop
 
@@ -11234,7 +11234,7 @@ se_swath:
 	moveq.l	#0,d4			;part start
 se_count:
 	move.l	d2,d0
-	bsr.w	GetFATEntry
+	bsr	GetFATEntry
 	tst.l	d0
 	beq.s	se_free
 
@@ -11262,7 +11262,7 @@ se_flush:
 	beq.s	se_swath
 
 	move.l	d5,SD_OPENCHAINS(a5)
-	bsr.w	Cluster2Block
+	bsr	Cluster2Block
 	add.l	FirstBlock(a4),d0
 	move.l	d0,d4			;absolute Block #
 	move.w	ClusterShift(a4),d0
@@ -11273,7 +11273,7 @@ se_flush:
 	move.l	d4,d0
 	move.l	d5,d1
 	move.l	d6,a0
-	bsr.w	_Write			;use CFA_ERASE_SECTORS
+	bsr	_Write			;use CFA_ERASE_SECTORS
 	cmp.l	d0,d5
 	beq.s	se_swath
 
@@ -11300,7 +11300,7 @@ se_w1:
 	move.l	d1,-(sp)
 	move.l	d4,d0
 	move.l	a3,a0
-	bsr.w	_Write			;zero fill
+	bsr	_Write			;zero fill
 	move.l	(sp)+,d1
 	cmp.l	d0,d1
 	bne.s	se_stop
@@ -11323,7 +11323,7 @@ se_stop:
 	CALLEXEC FreeMem
 se_update:
 	moveq.l	#-1,d0
-	bsr.w	UpdateDisk
+	bsr	UpdateDisk
 	move.l	SD_WINDOW(a5),d0
 	beq.s	se_end
 
@@ -11373,14 +11373,14 @@ ScanDisk:
 	bset	d0,d1
 	subq.l	#1,d1
 	move.l	d1,SD_STEPMASK(a5)	;..steps
-	bsr.w	OpenProgWindow
+	bsr	OpenProgWindow
 	move.l	d0,SD_WINDOW(a5)
-	bsr.w	sd_initwingfx
+	bsr	sd_initwingfx
 
 ;- - a forest hike - - - - - - - - - - - - - - - - - - - - -
 
 	move.l	UIText+9*4(a4),a0
-	bsr.w	sd_text
+	bsr	sd_text
 	moveq.l	#0,d7			;root level
 	moveq.l	#0,d6			;parent link to root always 0
 	move.l	RootCluster(a4),d0
@@ -11391,16 +11391,16 @@ sd_tstart:
 	cmp.w	#KEY_ESC,SD_LASTKEY(a5)
 	beq.w	sd_tabort		;user stop
 
-	bsr.w	sd_getchain
+	bsr	sd_getchain
 	move.l	d6,d0
-	bsr.w	Cluster2Block
+	bsr	Cluster2Block
 	move.l	d0,d5			;dir Block #
 	moveq.l	#0,d4			;Offset
 sd_tblock:
 	move.l	d5,d0
 	beq.w	sd_tup			;end of chain
 
-	bsr.w	ReadDirBlock
+	bsr	ReadDirBlock
 	tst.l	d0
 	beq.w	sd_tup			;read error
 
@@ -11495,7 +11495,7 @@ sd_tfile:
 	cmp.l	d3,d0			;..or too large
 	bcc.s	sd_tudfix
 sd_tf1:
-	bsr.w	sd_getchain
+	bsr	sd_getchain
 	move.w	BlockShift(a4),d1
 	add.w	ClusterShift(a4),d1
 	ReverseL d2
@@ -11511,7 +11511,7 @@ sd_tf1:
 sd_tupdate:
 	move.l	SD_BLOCKBUF(a5),a0
 	move.l	a2,d0
-	bsr.w	BlockChanged
+	bsr	BlockChanged
 sd_tenext:
 	moveq.l	#MSDE_Sizeof,d0
 	add.l	d0,a2
@@ -11521,7 +11521,7 @@ sd_tenext:
 sd_tbnext:
 	moveq.l	#0,d4
 	move.l	d5,d0
-	bsr.w	NextBlock
+	bsr	NextBlock
 	move.l	d0,d5
 	bra.w	sd_tblock
 
@@ -11532,7 +11532,7 @@ sd_tdown:
 	clr.l	MSDE_FSize(a2)		;..no file length
 	move.l	SD_BLOCKBUF(a5),a0
 	move.l	a2,d0
-	bsr.w	BlockChanged
+	bsr	BlockChanged
 	addq.l	#1,SD_FILESIZES(a5)
 sd_td1:
 	moveq.l	#50,d1
@@ -11564,7 +11564,7 @@ sd_tabort:
 
 sd_fatscan:
 	move.l	UIText+10*4(a4),a0
-	bsr.w	sd_text
+	bsr	sd_text
 	move.l	a3,a2
 	addq.l	#2,a2
 	moveq.l	#2,d2
@@ -11578,7 +11578,7 @@ sd_fcluster:
 
 	addq.l	#1,SD_DONE(a5)
 	move.l	d2,d0
-	bsr.w	GetFATEntry
+	bsr	GetFATEntry
 	move.l	d0,d5			;link..
 	beq.s	sd_ffree
 	bmi.s	sd_flast
@@ -11616,7 +11616,7 @@ sd_ffree:
 sd_fcut:
 	move.l	d2,d0
 	moveq.l	#-1,d1
-	bsr.w	PutFATEntry		;terminate chain here
+	bsr	PutFATEntry		;terminate chain here
 sd_flast:
 	moveq.l	#%0111,d0
 sd_fused:
@@ -11634,7 +11634,7 @@ sd_fnext:
 	and.l	d2,d0
 	bne.s	sd_fn2			;from time to time..
 
-	bsr.w	sd_bar			;..update progress bar
+	bsr	sd_bar			;..update progress bar
 sd_fn2:
 	cmp.l	d3,d2
 	bcs.w	sd_fcluster
@@ -11642,7 +11642,7 @@ sd_fn2:
 ;- - salvage lost cluster chains - - - - - - - - - - - - - -
 
 	move.l	UIText+11*4(a4),a0
-	bsr.w	sd_text
+	bsr	sd_text
 	sub.w	#20,sp
 	move.l	sp,d2
 	addq.l	#3,d2
@@ -11668,7 +11668,7 @@ sd_lostsearch:
 sd_lscluster:
 	addq.l	#1,d6
 	move.l	d5,d0
-	bsr.w	GetFATEntry		;get chain length
+	bsr	GetFATEntry		;get chain length
 	move.l	d0,d5
 	bgt.s	sd_lscluster
 sd_lsname:
@@ -11690,13 +11690,13 @@ sd_lsfile:
 	pea	CREATE_MODE&EXCLUSIVE_LOCK
 	move.l	d2,-(sp)
 	clr.l	-(sp)			;into root dir
-	bsr.w	LocateObj
+	bsr	LocateObj
 	add.w	#12,sp
 	tst.l	d0
 	beq.s	sd_lswrite
 
 	move.l	d0,a1
-	bsr.w	CloseXLock		;if file name already used..
+	bsr	CloseXLock		;if file name already used..
 	bra.s	sd_lsname		;..try next #
 sd_lswrite:
 	move.l	NewObject(a4),d5
@@ -11719,9 +11719,9 @@ sd_lswrite:
 sd_lsclose:
 	move.l	d5,a0
 	add.w	#XL_MSDE,a0
-	bsr.w	WriteMSDE
+	bsr	WriteMSDE
 	move.l	d5,a1
-	bsr.w	CloseXLock
+	bsr	CloseXLock
 sd_lsnext:
 	addq.l	#1,d4
 	cmp.l	d3,d4
@@ -11733,7 +11733,7 @@ sd_lsbreak:
 
 sd_abort:
 	moveq.l	#-1,d0
-	bsr.w	UpdateDisk
+	bsr	UpdateDisk
 	lea	SD_ERRORS(a5),a1
 	move.l	-(a1),d1
 	add.l	-(a1),d1
@@ -11748,10 +11748,10 @@ sd_ready:
 	move.l	d1,-(sp)
 	pea	SD_STRINGBUF(a5)
 	move.l	a0,-(sp)
-	bsr.w	SPrintF
+	bsr	SPrintF
 	add.w	#12,sp
 	lea	SD_STRINGBUF(a5),a0
-	bsr.w	sd_text
+	bsr	sd_text
 	move.l	TimeRequest(a4),a1
 	CALLEXEC WaitIO			;get back TimeRequest
 	move.l	TimeRequest(a4),a1
@@ -11819,7 +11819,7 @@ sd_gc1:
 	move.b	d1,(a0)
 	addq.l	#1,d4
 	move.l	d0,d2
-	bsr.w	GetFATEntry
+	bsr	GetFATEntry
 	bra.s	sd_gcloop
 sd_gclast:
 	tst.l	d4
@@ -11830,7 +11830,7 @@ sd_gcstop:
 	or.b	#%1011,(a0)
 sd_gcend:
 	add.l	d4,SD_DONE(a5)
-	bsr.w	sd_bar			;update progress bar
+	bsr	sd_bar			;update progress bar
 	move.l	d4,d0
 	movem.l	(sp)+,d2/d4
 	rts
@@ -11847,7 +11847,7 @@ sd_gccut:
 sd_gctail:
 	move.l	d2,d0
 	moveq.l	#-1,d1
-	bsr.w	PutFATEntry
+	bsr	PutFATEntry
 	bra.s	sd_gcstop
 
 ;- - open progress window  - - - - - - - - - - - - - - - - -
@@ -11936,11 +11936,11 @@ opw_screen:
 	lsl.l	#2,d0
 	addq.l	#1,d0
 	move.l	d0,a0
-	bsr.w	StrCopy
+	bsr	StrCopy
 	lea	opw_minus(pc),a0
-	bsr.w	StrCopy
+	bsr	StrCopy
 	move.l	UIText+4*15(a4),a0
-	bsr.w	StrCopy
+	bsr	StrCopy
 	move.l	#WA_Title,-(sp)
 	sub.l	a0,a0
 	move.l	sp,a1
@@ -12074,7 +12074,7 @@ sd_text:
 	CALLSAME Move
 	move.l	a2,a1
 	move.l	d4,a0
-	bsr.w	StrLen
+	bsr	StrLen
 	CALLSAME Text
 	movem.l	(sp)+,d2-d4/a2
 sdt_end:
@@ -12155,7 +12155,7 @@ MakeDir:
 	pea	CREATE_MODE&SHARED_LOCK
 	move.l	12(a5),-(sp)
 	move.l	8(a5),-(sp)
-	bsr.w	LocateObj
+	bsr	LocateObj
 	add.w	#12,sp
 	move.l	d0,a2
 	tst.l	d0
@@ -12170,14 +12170,14 @@ MakeDir:
 	bra.s	md_end
 md_init:
 	move.l	a2,-(sp)
-	bsr.w	ExtendDir		;init new dir
+	bsr	ExtendDir		;init new dir
 	addq.w	#4,sp
 	tst.l	d0
 	beq.s	md_delete
 
 	move.b	#$30,XL_MSDE+MSDE_Flags(a2)
 	lea	XL_MSDE(a2),a0
-	bsr.w	WriteMSDE
+	bsr	WriteMSDE
 md_end:
 	move.l	a2,d0
 	move.l	(sp)+,a2
@@ -12186,7 +12186,7 @@ md_end:
 
 md_close:
 	move.l	a2,a1
-	bsr.w	CloseXLock
+	bsr	CloseXLock
 	sub.l	a2,a2
 md_exists:
 	move.w	#203,ErrorNum(a4)	;..also means "exists already"
@@ -12194,11 +12194,11 @@ md_exists:
 
 md_delete:
 	move.l	a2,a1
-	bsr.w	CloseXLock
+	bsr	CloseXLock
 	sub.l	a2,a2
 	move.l	12(a5),-(sp)
 	move.l	8(a5),-(sp)
-	bsr.w	DeleteObj
+	bsr	DeleteObj
 	addq.l	#8,sp
 	bra.s	md_end
 
@@ -12217,7 +12217,7 @@ RenameObj:
 	pea	(SHARED_LOCK).w
 	move.l	12(a5),-(sp)
 	move.l	8(a5),-(sp)
-	bsr.w	LocateObj
+	bsr	LocateObj
 	add.w	#12,sp
 	move.l	d0,a2
 	tst.l	d0
@@ -12230,7 +12230,7 @@ RenameObj:
 	pea	FORCE_MODE&SHARED_LOCK	;..enforce creating..
 	move.l	20(a5),-(sp)
 	move.l	16(a5),-(sp)
-	bsr.w	LocateObj		;..a new entry
+	bsr	LocateObj		;..a new entry
 	add.w	#16,sp
 	move.l	d0,a3
 	tst.l	d0
@@ -12253,13 +12253,13 @@ rob_ploop:
 	bne.s	rob_ploop
 
 	move.l	a3,a0
-	bsr.w	DeleteXLock
+	bsr	DeleteXLock
 	move.w	#202,ErrorNum(a4)	;move dir into self?!
 	bra.w	rob_freedest
 
 rob_copyback:
 	move.l	a2,a0
-	bsr.w	DeleteXLock		;delete old object
+	bsr	DeleteXLock		;delete old object
 
 	lea	XL_MSDE(a3),a0
 	lea	XL_MSDE(a2),a1
@@ -12281,7 +12281,7 @@ rob_cbloop:
 	beq.s	rob_write		;rename only. no move
 
 	move.l	d0,a1
-	bsr.w	CloseXLock
+	bsr	CloseXLock
 	move.l	XL_Parent(a3),XL_Parent(a2) ;change parent dir
 	clr.l	XL_Parent(a3)
 	btst	#4,XL_MSDE+MSDE_Flags(a2)
@@ -12295,8 +12295,8 @@ rob_cbloop:
 	swap	d0
 rob_1:
 	move.w	XL_MSDE+MSDE_1L(a2),d0
-	bsr.w	Cluster2Block
-	bsr.w	ReadDirBlock		;in 1st block of..
+	bsr	Cluster2Block
+	bsr	ReadDirBlock		;in 1st block of..
 	move.l	d0,d2			;..dir to be moved..
 	beq.s	rob_write
 
@@ -12304,27 +12304,27 @@ rob_1:
 	cmp.w	#"..",MSDE_Sizeof(a1)	;..adjust the internal back link..
 	bne.s	rob_closeblock
 
-	bsr.w	BlockChanged
+	bsr	BlockChanged
 	move.l	XL_Parent(a2),a0	;..to parent..
 	add.w	#XL_MSDE+MSDE_unused1,a0
 	move.l	d2,a1
 	add.w	#MSDE_Sizeof+MSDE_unused1,a1
-	bsr.w	R2CopyMSDE		;..dir
+	bsr	R2CopyMSDE		;..dir
 rob_closeblock:
 
 rob_write:
 	bset	#5,XL_MSDE+MSDE_Flags(a2) ;clear archive bit
 	lea	XL_MSDE(a2),a0
-	bsr.w	WriteMSDE
+	bsr	WriteMSDE
 	moveq.l	#TRUE,d0
 	move.l	d0,ROB_RESULT(a5)
 
 rob_freedest:
 	move.l	a3,a1
-	bsr.w	CloseXLock
+	bsr	CloseXLock
 rob_freesrc:
 	move.l	a2,a1
-	bsr.w	CloseXLock
+	bsr	CloseXLock
 rob_end:
 	move.l	ROB_RESULT(a5),d0
 	movem.l	(sp)+,d2/a2-a3
@@ -12374,7 +12374,7 @@ dreq_case:
 	pea	LastVolName(a4)
 	pea	DREQ_BUF(a5)
 	move.l	UIText+3*4(a4),-(sp)
-	bsr.w	SPrintF			;"please reinsert disk"
+	bsr	SPrintF			;"please reinsert disk"
 	add.w	#12,sp
 	bra.s	dreq_req
 
@@ -12392,7 +12392,7 @@ dreq_readerr:
 	move.l	d1,-(sp)
 	pea	DREQ_BUF(a5)
 	move.l	12(a5),-(sp)
-	bsr.w	SPrintF			;"read error"
+	bsr	SPrintF			;"read error"
 	add.w	#20,sp
 
 dreq_req:
@@ -12441,7 +12441,7 @@ dreq_repeat:
 	pea	DREQ_POSTEXT(a5)
 	pea	DREQ_TEXT1(a5)		;&request text
 	move.l	a2,-(sp)		;&parent window
-	bsr.w	_AutoRequest
+	bsr	_AutoRequest
 	add.w	#32,sp
 	cmp.b	#TDERR_DISKCHANGED,8+3(a5)
 	bne.s	dreq_end		;"normal" read error
@@ -12449,13 +12449,13 @@ dreq_repeat:
 	tst.l	d0
 	beq.s	dreq_end		;user took "abort"
 
-	bsr.w	DiskStatus
+	bsr	DiskStatus
 	tst.w	d0
 	beq.s	dreq_repeat		;disk still not inserted
 
 	move.l	d0,-(sp)
-	bsr.w	DiskClear
-	bsr.w	DiskChangeNum
+	bsr	DiskClear
+	bsr	DiskChangeNum
 	clr.w	DiskChanged(a4)
 	move.l	(sp)+,d0
 dreq_end:
@@ -12737,7 +12737,7 @@ spf_d2:
 	move.b	#'-',(a1)+
 	neg.l	d0
 spf_n2s:
-	bsr.s	Num2Str
+	bsr	Num2Str
 	bra.s	spf_start
 
 ;- - longword  - - - - - - - - - - - - - - - - - - - - - - -
@@ -12769,7 +12769,7 @@ spf_s:
 
 	move.l	a0,-(sp)
 	move.l	d1,a0
-	bsr.w	StrCopy
+	bsr	StrCopy
 	move.l	(sp)+,a0
 	bra.w	spf_start
 
@@ -12989,7 +12989,7 @@ AllocMsgPort:
 	move.l	d0,MP_SigTask(a0)
 	move.b	d3,MP_SigBit(a0)
 	add.w	#MP_MsgList,a0
-	bsr.s	InitList
+	bsr	InitList
 amp_end:
 	move.l	d2,d0
 	movem.l	(sp)+,d2-d3/a6
