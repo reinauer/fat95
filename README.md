@@ -49,6 +49,16 @@ Improvements to this handler are developed in my free time. If you'd like to sup
 
 ## What's New in
 
+### 3.22-dev (03.05.2026)
+
+This release contains internal microoptimizations and minor size reductions.
+
+- Several inner loops optimised for both CPU tiers.
+- Directory block clearing and file delete are faster on 68000.
+- FAT entry reads on 68020+ use fewer instructions.
+- SCSI READ10/WRITE10 command setup now uses a shared helper.
+- GPT partition GUID matching is now table-driven.
+
 ### 3.21 (18.04.2026)
 
 This release focuses on stability and compatibility improvements across both CPU tiers (`68000`/`68010` and `68020+`)
@@ -141,8 +151,9 @@ The two tiers are functionally identical. The 68020+ tier is slightly smaller an
 You can confirm which tier you have loaded by reading the `$VER:` string:
 
 ```
-version fat95
--> fat95 3.21 (17.04.2026) [68020]
+version fat95 full
+fat95 3.21 (17.04.2026)
+[68020]
 ```
 
 ## Mountlist Configuration
@@ -503,6 +514,7 @@ GNU LGPL v2.1
 
 | Version | Date | Changes |
 |---------|------|---------|
+| v3.22 | 05/2026 | Reduced binary size, microoptimizations in directory/FAT paths on 68000+ and 68020+ |
 | v3.21 | 04/2026 | 68000 NTFS-detect crash fix, GetDiskParams register/state safety, CPU-tier builds (68020+ / 68000) |
 | v3.20 | 03/2026 | NTFS volume rejection |
 | v3.19 | 02/2026 | GPT partition table support, improved disk change handling, Fixed trailing slashes in path names |
